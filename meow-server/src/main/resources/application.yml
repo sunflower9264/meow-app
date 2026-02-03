@@ -1,0 +1,119 @@
+# 开发环境配置
+server:
+  port: 9090
+  servlet:
+    # 应用的访问路径
+    context-path: /
+  tomcat:
+    # tomcat的URI编码
+    uri-encoding: UTF-8
+    # 连接数满后的排队数，默认为100
+    accept-count: 1000
+    threads:
+      # tomcat最大线程数，默认为200
+      max: 800
+      # Tomcat启动初始化的线程数，默认值10
+      min-spare: 100
+
+# 日志配置
+logging:
+  level:
+    com.miaomiao: debug
+    org.springframework: warn
+    com.miaomiao.assistant.mapper: warn
+    com.baomidou.mybatisplus: warn
+    org.mybatis: warn
+
+# Spring配置
+spring:
+  # Jackson配置
+  jackson:
+    time-zone: Asia/Shanghai
+    date-format: yyyy-MM-dd HH:mm:ss
+    serialization:
+      write-dates-as-timestamps: false
+  # 文件上传
+  servlet:
+    multipart:
+      # 单个文件大小
+      max-file-size: 10MB
+      # 设置总上传的文件大小
+      max-request-size: 20MB
+
+# Provider配置
+provider:
+  # VAD配置
+  vad:
+    defaultProvider: silero
+    silero:
+      enabled: true
+      serviceUrl: http://127.0.0.1:8765
+      threshold: 0.5
+      thresholdLow: 0.15
+
+  # ASR配置
+  asr:
+    defaultProvider: funasr  # 默认ASR提供商 (免费本地)
+    funasr:
+      enabled: true
+      serviceUrl: http://127.0.0.1:8765
+      language: zh
+    openai:
+      enabled: false
+      apiKey: 
+      baseUrl: https://api.openai.com/v1/audio/transcriptions
+      model: whisper-1
+      language: zh
+    aliyun:
+      enabled: false
+      appKey: 
+      accessKeyId: 
+      accessKeySecret: 
+
+  # LLM配置
+  llm:
+    defaultProvider: chatglm  # 默认LLM提供商
+    openai:
+      enabled: false
+      apiKey: 
+      baseUrl: https://api.openai.com/v1
+      model: gpt-3.5-turbo
+      temperature: 0.7
+      maxTokens: 2000
+    aliyun:
+      enabled: false
+      apiKey: 
+      model: qwen-turbo
+    ollama:
+      enabled: false
+      baseUrl: http://localhost:11434
+      model: llama2
+    chatglm:
+      enabled: true
+      apiKey: ${CHATGLM_API_KEY}
+      baseUrl: https://open.bigmodel.cn/api/paas/v4/chat/completions
+      model: glm-4.7
+      temperature: 0.7
+      maxTokens: 2000
+
+  # TTS配置
+  tts:
+    defaultProvider: edge  # 默认TTS提供商 (免费)
+    edge:
+      enabled: true
+      serviceUrl: http://127.0.0.1:8765
+      voice: zh-CN-XiaoxiaoNeural
+      rate: "+0%"
+      pitch: "+0Hz"
+      volume: "+0%"
+    aliyun:
+      enabled: false
+      appKey: 
+      accessKeyId: 
+      accessKeySecret: 
+      voice: zhixiaoyun
+    openai:
+      enabled: false
+      apiKey: 
+      model: tts-1
+      voice: alloy
