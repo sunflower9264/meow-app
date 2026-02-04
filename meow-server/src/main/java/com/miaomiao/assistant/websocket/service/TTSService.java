@@ -41,7 +41,7 @@ public class TTSService {
         // 调用TTS获取流式音频
         textStream
                 .takeWhile(sentence -> !state.isAborted()) // 检查中止状态
-                .flatMap(sentence -> ttsManager.textToSpeechStream(config.getTTSModelKey(), sentence, ttsOptions))
+                .concatMap(sentence -> ttsManager.textToSpeechStream(config.getTTSModelKey(), sentence, ttsOptions))
                 .takeWhile(audio -> !state.isAborted()) // TTS输出也检查中止状态
                 .subscribe(
                         ttsAudio -> {
