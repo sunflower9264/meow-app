@@ -40,80 +40,21 @@ spring:
       # 设置总上传的文件大小
       max-request-size: 20MB
 
-# Provider配置
-provider:
-  # VAD配置
-  vad:
-    defaultProvider: silero
-    silero:
-      enabled: true
-      serviceUrl: http://127.0.0.1:8765
-      threshold: 0.5
-      thresholdLow: 0.15
-
-  # ASR配置
-  asr:
-    defaultProvider: funasr  # 默认ASR提供商 (免费本地)
-    funasr:
-      enabled: true
-      serviceUrl: http://127.0.0.1:8765
-      language: zh
-    openai:
-      enabled: false
-      apiKey: 
-      baseUrl: https://api.openai.com/v1/audio/transcriptions
-      model: whisper-1
-      language: zh
-    aliyun:
-      enabled: false
-      appKey: 
-      accessKeyId: 
-      accessKeySecret: 
-
-  # LLM配置
-  llm:
-    defaultProvider: chatglm  # 默认LLM提供商
-    openai:
-      enabled: false
-      apiKey: 
-      baseUrl: https://api.openai.com/v1
-      model: gpt-3.5-turbo
-      temperature: 0.7
-      maxTokens: 2000
-    aliyun:
-      enabled: false
-      apiKey: 
-      model: qwen-turbo
-    ollama:
-      enabled: false
-      baseUrl: http://localhost:11434
-      model: llama2
-    chatglm:
+# AI服务统一配置 - 只配置凭证，使用时通过模型名选择
+ai:
+  providers:
+    # 智谱AI - 支持LLM/ASR/TTS
+    zhipu:
       enabled: true
       apiKey: ${CHATGLM_API_KEY}
-      baseUrl: https://open.bigmodel.cn/api/paas/v4/chat/completions
-      model: glm-4.7
-      temperature: 0.7
-      maxTokens: 2000
+      baseUrl: https://open.bigmodel.cn/api/paas/v4/
+      enableTokenCache: true
+      tokenExpire: 3600000
 
-  # TTS配置
-  tts:
-    defaultProvider: edge  # 默认TTS提供商 (免费)
-    edge:
-      enabled: true
-      serviceUrl: http://127.0.0.1:8765
-      voice: zh-CN-XiaoxiaoNeural
-      rate: "+0%"
-      pitch: "+0Hz"
-      volume: "+0%"
-    aliyun:
-      enabled: false
-      appKey: 
-      accessKeyId: 
-      accessKeySecret: 
-      voice: zhixiaoyun
-    openai:
-      enabled: false
-      apiKey: 
-      model: tts-1
-      voice: alloy
+# Native库配置
+native:
+  opus:
+    # Native库文件夹路径
+    # 文件夹下应包含 opus-jni-native.dll 或 libopus-jni-native.so
+    # 留空则自动检测：优先从工作目录的native文件夹加载，其次从系统库路径加载
+    library-dir: D:/myworkspace/meow/meow-server/native

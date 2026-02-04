@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__zread__get_repo_structure",
+      "mcp__web-search-prime__webSearchPrime",
+      "Bash(mvn compile:*)",
+      "Bash(mvn:*)"
+    ]
+  }
+}
