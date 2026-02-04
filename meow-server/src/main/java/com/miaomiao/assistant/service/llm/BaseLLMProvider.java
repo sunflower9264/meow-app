@@ -20,7 +20,7 @@ public abstract class BaseLLMProvider {
     /**
      * LLM响应结果
      */
-    public record LLMResponse(String text, boolean finished) {
+    public record AppLLMResponse(String text, boolean finished) {
     }
 
     /**
@@ -28,7 +28,7 @@ public abstract class BaseLLMProvider {
      *
      * @param role system, user, assistant
      */
-    public record ChatMessage(String role, String content) {
+    public record AppChatMessage(String role, String content) {
     }
 
     /**
@@ -81,7 +81,7 @@ public abstract class BaseLLMProvider {
      * @param options  LLM选项（包含模型名称）
      * @return 完整响应文本
      */
-    public abstract String chat(List<ChatMessage> messages, LLMOptions options);
+    public abstract String chat(List<AppChatMessage> messages, LLMOptions options);
 
     /**
      * 流式对话
@@ -90,5 +90,5 @@ public abstract class BaseLLMProvider {
      * @param options  LLM选项（包含模型名称）
      * @return 响应流
      */
-    public abstract Flux<LLMResponse> chatStream(List<ChatMessage> messages, LLMOptions options);
+    public abstract Flux<AppLLMResponse> chatStream(List<AppChatMessage> messages, LLMOptions options);
 }

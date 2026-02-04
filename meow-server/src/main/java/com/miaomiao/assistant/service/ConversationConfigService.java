@@ -21,8 +21,11 @@ public class ConversationConfigService {
      */
     public ConversationConfig getDefaultConfig() {
         return ConversationConfig.builder()
+                .asrProvider("zhipu")
                 .asrModel("chirp-beta")
+                .llmProvider("zhipu")
                 .llmModel("glm-4-flash")
+                .ttsProvider("zhipu")
                 .ttsModel("glm-tts")
                 .ttsVoice("female")
                 .ttsFormat("pcm")

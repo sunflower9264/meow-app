@@ -78,36 +78,45 @@ public class TTSManager {
     }
 
     /**
-     * 根据模型名称获取对应的Provider
-     */
-    public BaseTTSProvider getProviderByModel(String model) {
-        BaseTTSProvider provider = modelProviderMap.get(model);
-        if (provider == null) {
-            throw new IllegalArgumentException("不支持的TTS模型: " + model + "，支持的模型: " + modelProviderMap.keySet());
-        }
-        return provider;
-    }
-
-    /**
      * 文本转语音（非流式）
      *
-     * @param text    文本
-     * @param options TTS选项（包含模型名称）
+     * @param providerName Provider名称
+     * @param text         文本
+     * @param options      TTS选项（包含模型名称）
      */
-    public BaseTTSProvider.TTSAudio textToSpeech(String text, BaseTTSProvider.TTSOptions options) {
-        BaseTTSProvider provider = getProviderByModel(options.getModel());
+    public BaseTTSProvider.TTSAudio textToSpeech(String providerName, String text, BaseTTSProvider.TTSOptions options) {
+        BaseTTSProvider provider = getProvider(providerName);
         return provider.textToSpeech(text, options);
     }
 
     /**
      * 文本转语音（流式）
      *
-     * @param text    文本
-     * @param options TTS选项（包含模型名称）
+     * @param providerName Provider名称
+     * @param text         文本
+     * @param options      TTS选项（包含模型名称）
      */
-    public Flux<BaseTTSProvider.TTSAudio> textToSpeechStream(String text, BaseTTSProvider.TTSOptions options) {
-        BaseTTSProvider provider = getProviderByModel(options.getModel());
+    public Flux<BaseTTSProvider.TTSAudio> textToSpeechStream(String providerName, String text, BaseTTSProvider.TTSOptions options) {
+        BaseTTSProvider provider = getProvider(providerName);
         return provider.textToSpeechStream(text, options);
+    }
+
+    /**
+     * 根据名称获取Provider
+     */
+    public BaseTTSProvider getProvider(String name) {
+        BaseTTSProvider provider = providers.get(name);
+        if (provider == null) {
+            throw new IllegalArgumentException("未找到TTS Provider: " + name);
+        }
+        return provider;
+    }
+
+    /**
+     * 检查Provider是否存在
+     */
+    public boolean hasProvider(String name) {
+        return providers.containsKey(name);
     }
 
     /**

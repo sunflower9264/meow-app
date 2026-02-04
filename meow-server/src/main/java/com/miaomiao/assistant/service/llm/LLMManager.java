@@ -64,27 +64,38 @@ public class LLMManager {
 
     /**
      * 根据配置创建Providers
-     * 一个服务商可能创建多个Provider（如智谱有通用端点和Coding端点）
      */
     private List<BaseLLMProvider> createProviders(String name, AIServiceConfig.ProviderCredential credential) {
+        // 检查是否配置了模型列表
+        if (credential.getModels() == null || credential.getModels().isEmpty()) {
+            log.debug("Provider {} 未配置LLM模型列表，跳过", name);
+            return List.of();
+        }
+
+        Set<String> models = Set.copyOf(credential.getModels());
+
+        // 智谱AI Coding端点 - 单独配置
+        if (name.contains("zhipu-coding")) {
+            HttpApiProvider codingProvider = new HttpApiProvider(
+                    name,
+                    credential.getApiKey(),
+                    "https://open.bigmodel.cn/api/coding/paas/v4/chat/completions",
+                    models
+            );
+            return List.of(codingProvider);
+        }
+
+        // 智谱AI 通用端点
         if (name.contains("zhipu")) {
-            // 智谱AI - 创建通用端点和Coding端点两个Provider
             ZhipuSDKProvider sdkProvider = new ZhipuSDKProvider(
-                    name + "-sdk",
+                    name,
                     credential.getApiKey(),
                     credential.getBaseUrl() != null ? credential.getBaseUrl() : "https://open.bigmodel.cn/api/paas/v4/",
                     credential.getEnableTokenCache(),
-                    credential.getTokenExpire()
+                    credential.getTokenExpire(),
+                    models
             );
-
-            HttpApiProvider codingProvider = new HttpApiProvider(
-                    name + "-coding",
-                    credential.getApiKey(),
-                    "https://open.bigmodel.cn/api/coding/paas/v4/chat/completions",
-                    Set.of("glm-4-code", "codegeex-4")
-            );
-
-            return List.of(sdkProvider, codingProvider);
+            return List.of(sdkProvider);
         }
 
         // 可扩展其他LLM服务商...
@@ -93,35 +104,26 @@ public class LLMManager {
     }
 
     /**
-     * 根据模型名称获取对应的Provider
-     */
-    public BaseLLMProvider getProviderByModel(String model) {
-        BaseLLMProvider provider = modelProviderMap.get(model);
-        if (provider == null) {
-            throw new IllegalArgumentException("不支持的LLM模型: " + model + "，支持的模型: " + modelProviderMap.keySet());
-        }
-        return provider;
-    }
-
-    /**
      * 非流式对话
      *
-     * @param messages 消息列表
-     * @param options  LLM选项（包含模型名称）
+     * @param providerName Provider名称
+     * @param messages     消息列表
+     * @param options      LLM选项（包含模型名称）
      */
-    public String chat(List<BaseLLMProvider.ChatMessage> messages, BaseLLMProvider.LLMOptions options) {
-        BaseLLMProvider provider = getProviderByModel(options.getModel());
+    public String chat(String providerName, List<BaseLLMProvider.AppChatMessage> messages, BaseLLMProvider.LLMOptions options) {
+        BaseLLMProvider provider = getProvider(providerName);
         return provider.chat(messages, options);
     }
 
     /**
      * 流式对话
      *
-     * @param messages 消息列表
-     * @param options  LLM选项（包含模型名称）
+     * @param providerName Provider名称
+     * @param messages     消息列表
+     * @param options      LLM选项（包含模型名称）
      */
-    public Flux<BaseLLMProvider.LLMResponse> chatStream(List<BaseLLMProvider.ChatMessage> messages, BaseLLMProvider.LLMOptions options) {
-        BaseLLMProvider provider = getProviderByModel(options.getModel());
+    public Flux<BaseLLMProvider.AppLLMResponse> chatStream(String providerName, List<BaseLLMProvider.AppChatMessage> messages, BaseLLMProvider.LLMOptions options) {
+        BaseLLMProvider provider = getProvider(providerName);
         return provider.chatStream(messages, options);
     }
 

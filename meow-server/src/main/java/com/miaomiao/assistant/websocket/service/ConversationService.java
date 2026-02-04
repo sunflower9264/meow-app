@@ -11,7 +11,6 @@ import com.miaomiao.assistant.websocket.message.WebSocketMessageSender;
 import com.miaomiao.assistant.websocket.session.SessionState;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
@@ -59,8 +58,8 @@ public class ConversationService {
         BaseLLMProvider.LLMOptions llmOptions = BaseLLMProvider.LLMOptions.of(config.getLlmModel());
 
         // 构建对话历史
-        List<BaseLLMProvider.ChatMessage> messages = new ArrayList<>(state.getConversationHistory());
-        messages.add(new BaseLLMProvider.ChatMessage("user", text));
+        List<BaseLLMProvider.AppChatMessage> messages = new ArrayList<>(state.getConversationHistory());
+        messages.add(new BaseLLMProvider.AppChatMessage("user", text));
 
         // 设置文本分段sink用于TTS
         Sinks.Many<String> textSink = Sinks.many().unicast().onBackpressureBuffer();
@@ -72,7 +71,7 @@ public class ConversationService {
         final boolean[] firstSentenceSent = {false};
 
         // 开始LLM流式响应
-        Flux<BaseLLMProvider.LLMResponse> llmStream = llmManager.chatStream(messages, llmOptions);
+        Flux<BaseLLMProvider.AppLLMResponse> llmStream = llmManager.chatStream(config.getLlmProvider(), messages, llmOptions);
 
         // 订阅LLM流 - 检测句子边界时立即发送给TTS
         Disposable llmDisposable = llmStream
@@ -106,14 +105,14 @@ public class ConversationService {
      * 处理LLM响应
      */
     private void handleLLMResponse(SessionState state,
-                                   BaseLLMProvider.LLMResponse llmResponse,
+                                   BaseLLMProvider.AppLLMResponse appLlmResponse,
                                    String userText,
                                    StringBuilder fullResponse,
                                    StringBuilder currentBuffer,
                                    AtomicInteger sentenceIndex,
                                    boolean[] firstSentenceSent,
                                    Sinks.Many<String> textSink) {
-        String content = llmResponse.text();
+        String content = appLlmResponse.text();
         if (content != null && !content.isEmpty()) {
             fullResponse.append(content);
             currentBuffer.append(content);
@@ -147,7 +146,7 @@ public class ConversationService {
         }
 
         // 流结束时处理剩余文本
-        if (llmResponse.finished()) {
+        if (appLlmResponse.finished()) {
             if (!currentBuffer.isEmpty()) {
                 int idx = sentenceIndex.getAndIncrement();
                 try {
@@ -177,12 +176,12 @@ public class ConversationService {
         // 调用TTS获取流式音频
         textStream
                 .takeWhile(sentence -> !state.isAborted())  // 检查中止状态
-                .flatMap(sentence -> ttsManager.textToSpeechStream(sentence, ttsOptions))
+                .flatMap(sentence -> ttsManager.textToSpeechStream(config.getTtsProvider(), sentence, ttsOptions))
                 .takeWhile(audio -> !state.isAborted())  // TTS输出也检查中止状态
                 .subscribe(
                         ttsAudio -> {
                             try {
-                                // 将PCM转换为Opus
+                                // 将PCM转换为Opus裸帧（前端解码播放）
                                 byte[] opusData = audioConverter.convertPcmToOpus(ttsAudio.getAudioData());
 
                                 // 发送Opus音频到客户端

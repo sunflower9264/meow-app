@@ -76,6 +76,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useWebSocketStore } from '@/stores/websocket'
+import { getOpusPlayer } from '@/utils/opusPlayer'
 
 // Router
 const router = useRouter()
@@ -90,11 +91,8 @@ watch(isConnected, (newVal) => {
   console.log('Connection status changed:', newVal)
 }, { immediate: true })
 
-// Simple audio queue for sequential playback
-// Each item: { chunks: Uint8Array[], finished: boolean }
-let currentAudioChunks = []  // Accumulate chunks for current sentence
-let audioPlayQueue = []      // Queue of complete audio blobs to play
-let isAudioPlaying = false
+// Opus stream player
+const opusPlayer = getOpusPlayer()
 
 // State
 const messages = ref([])
@@ -103,8 +101,8 @@ const inputText = ref('')
 const isRecording = ref(false)
 const recordingTime = ref(0)
 const currentSentence = ref('')
-const audioPlayer = ref(null)
-const lastPlayedUrl = ref('')
+const audioPlayer = ref(null)  // Still used for playAudio function
+const lastPlayedUrl = ref('')  // Still used for playAudio function
 const recordingState = ref(null) // Stores { mediaRecorder, stream, timer }
 const micPermission = ref('unknown') // 'unknown', 'granted', 'denied', 'prompt'
 const inputMode = ref('text') // 'text' or 'voice'
@@ -145,36 +143,10 @@ function handleMessage(data) {
     messages.value.push(msg)
     scrollToBottom()
   } else if (data.type === 'tts') {
-    // TTS audio from backend - accumulate chunks for current sentence
+    // TTS audio from backend - raw Opus frames, decode and play via Web Audio API
     if (data.data && data.data.length > 0) {
-      const chunk = base64ToArrayBuffer(data.data)
-      currentAudioChunks.push(new Uint8Array(chunk))
-    }
-
-    // When this sentence's audio is complete, queue it for playback
-    if (data.finished) {
-      if (currentAudioChunks.length > 0) {
-        // Combine all chunks into one blob
-        const totalLength = currentAudioChunks.reduce((sum, chunk) => sum + chunk.length, 0)
-        const combined = new Uint8Array(totalLength)
-        let offset = 0
-        for (const chunk of currentAudioChunks) {
-          combined.set(chunk, offset)
-          offset += chunk.length
-        }
-
-        // Create blob URL and queue for playback
-        const blob = new Blob([combined], { type: 'audio/mpeg' })
-        const url = URL.createObjectURL(blob)
-        audioPlayQueue.push(url)
-
-        // Start playing if not already
-        if (!isAudioPlaying) {
-          playNextInQueue()
-        }
-      }
-      // Reset for next sentence
-      currentAudioChunks = []
+      const audioData = base64ToArrayBuffer(data.data)
+      opusPlayer.feed(audioData)
     }
   } else if (data.type === 'sentence') {
     // Streaming sentence from AI
@@ -192,32 +164,6 @@ function handleMessage(data) {
       currentSentence.value = ''
       scrollToBottom()
     }
-  }
-}
-
-// Play audio queue sequentially
-function playNextInQueue() {
-  if (audioPlayQueue.length === 0) {
-    isAudioPlaying = false
-    return
-  }
-
-  isAudioPlaying = true
-  const url = audioPlayQueue.shift()
-
-  if (audioPlayer.value) {
-    // Revoke previous URL
-    if (lastPlayedUrl.value) {
-      URL.revokeObjectURL(lastPlayedUrl.value)
-    }
-    lastPlayedUrl.value = url
-    audioPlayer.value.src = url
-    audioPlayer.value.play().catch(e => {
-      console.error('Audio play failed:', e)
-      playNextInQueue() // Try next on error
-    })
-  } else {
-    isAudioPlaying = false
   }
 }
 
@@ -323,13 +269,7 @@ function playAudio(msg) {
 }
 
 function onAudioEnded() {
-  // Revoke the URL of the played audio
-  if (lastPlayedUrl.value) {
-    URL.revokeObjectURL(lastPlayedUrl.value)
-    lastPlayedUrl.value = ''
-  }
-  // Play next audio in queue
-  playNextInQueue()
+  // No longer needed for TTS - kept for potential future use
 }
 
 function scrollToBottom() {
@@ -424,6 +364,8 @@ async function requestMicPermission() {
 
 // Lifecycle
 onMounted(async () => {
+  // Initialize opus player
+  await opusPlayer.init()
   // Request microphone permission on page load
   await requestMicPermissionOnLoad()
   // Use relative URL to leverage Vite proxy (ws://localhost:5173/ws/conversation -> ws://localhost:9090/ws/conversation)
@@ -432,11 +374,9 @@ onMounted(async () => {
   websocketStore.connect(wsUrl)
 })
 
-onUnmounted(() => {
+onUnmounted(async () => {
   websocketStore.disconnect()
-  if (lastPlayedUrl.value) {
-    URL.revokeObjectURL(lastPlayedUrl.value)
-  }
+  await opusPlayer.destroy()
 })
 </script>
 

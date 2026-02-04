@@ -16,14 +16,29 @@ import lombok.NoArgsConstructor;
 public class ConversationConfig {
 
     /**
+     * ASR Provider名称
+     */
+    private String asrProvider;
+
+    /**
      * ASR 模型
      */
     private String asrModel;
 
     /**
+     * LLM Provider名称
+     */
+    private String llmProvider;
+
+    /**
      * LLM 模型
      */
     private String llmModel;
+
+    /**
+     * TTS Provider名称
+     */
+    private String ttsProvider;
 
     /**
      * TTS 模型

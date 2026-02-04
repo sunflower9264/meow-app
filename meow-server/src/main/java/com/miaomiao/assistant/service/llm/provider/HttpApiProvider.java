@@ -56,7 +56,7 @@ public class HttpApiProvider extends BaseLLMProvider {
     }
 
     @Override
-    public String chat(List<ChatMessage> messages, LLMOptions options) {
+    public String chat(List<AppChatMessage> messages, LLMOptions options) {
         try {
             Request request = buildHttpRequest(messages, options, false);
             
@@ -73,8 +73,8 @@ public class HttpApiProvider extends BaseLLMProvider {
     }
 
     @Override
-    public Flux<LLMResponse> chatStream(List<ChatMessage> messages, LLMOptions options) {
-        Sinks.Many<LLMResponse> sink = Sinks.many().multicast().onBackpressureBuffer();
+    public Flux<AppLLMResponse> chatStream(List<AppChatMessage> messages, LLMOptions options) {
+        Sinks.Many<AppLLMResponse> sink = Sinks.many().multicast().onBackpressureBuffer();
 
         try {
             Request request = buildHttpRequest(messages, options, true);
@@ -88,7 +88,7 @@ public class HttpApiProvider extends BaseLLMProvider {
         return sink.asFlux();
     }
 
-    private Request buildHttpRequest(List<ChatMessage> messages, LLMOptions options, boolean stream) {
+    private Request buildHttpRequest(List<AppChatMessage> messages, LLMOptions options, boolean stream) {
         RequestBody body = buildRequestBody(messages, options, stream);
         return new Request.Builder()
                 .url(baseUrl)
@@ -98,7 +98,7 @@ public class HttpApiProvider extends BaseLLMProvider {
                 .build();
     }
 
-    private RequestBody buildRequestBody(List<ChatMessage> messages, LLMOptions options, boolean stream) {
+    private RequestBody buildRequestBody(List<AppChatMessage> messages, LLMOptions options, boolean stream) {
         try {
             ObjectNode root = objectMapper.createObjectNode();
             root.put("model", options.getModel());
@@ -113,7 +113,7 @@ public class HttpApiProvider extends BaseLLMProvider {
             }
 
             ArrayNode messagesArray = root.putArray("messages");
-            for (ChatMessage message : messages) {
+            for (AppChatMessage message : messages) {
                 ObjectNode msgNode = messagesArray.addObject();
                 msgNode.put("role", message.role());
                 msgNode.put("content", message.content());
@@ -139,7 +139,7 @@ public class HttpApiProvider extends BaseLLMProvider {
     /**
      * 创建SSE事件监听器
      */
-    private EventSourceListener createEventSourceListener(Sinks.Many<LLMResponse> sink) {
+    private EventSourceListener createEventSourceListener(Sinks.Many<AppLLMResponse> sink) {
         return new EventSourceListener() {
             @Override
             public void onOpen(EventSource eventSource, Response response) {
@@ -150,7 +150,7 @@ public class HttpApiProvider extends BaseLLMProvider {
             public void onEvent(EventSource eventSource, String id, String type, String data) {
                 try {
                     if ("[DONE]".equals(data)) {
-                        sink.tryEmitNext(new LLMResponse("", true));
+                        sink.tryEmitNext(new AppLLMResponse("", true));
                         sink.tryEmitComplete();
                         return;
                     }
@@ -162,12 +162,12 @@ public class HttpApiProvider extends BaseLLMProvider {
                         String content = delta.path("content").asText("");
 
                         if (!content.isEmpty()) {
-                            sink.tryEmitNext(new LLMResponse(content, false));
+                            sink.tryEmitNext(new AppLLMResponse(content, false));
                         }
 
                         String finishReason = choices.get(0).path("finish_reason").asText();
                         if ("stop".equals(finishReason)) {
-                            sink.tryEmitNext(new LLMResponse("", true));
+                            sink.tryEmitNext(new AppLLMResponse("", true));
                             sink.tryEmitComplete();
                         }
                     }

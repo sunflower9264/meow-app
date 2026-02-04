@@ -50,6 +50,23 @@ ai:
       baseUrl: https://open.bigmodel.cn/api/paas/v4/
       enableTokenCache: true
       tokenExpire: 3600000
+      models:
+        - glm-4
+        - glm-4-plus
+        - glm-4-air
+        - glm-4-airx
+        - glm-4-flash
+        - glm-4-flashx
+        - glm-4-long
+        - glm-4.7
+    zhipu-coding:
+      enabled: true
+      apiKey: ${CHATGLM_API_KEY}
+      baseUrl: https://open.bigmodel.cn/api/paas/v4/
+      enableTokenCache: true
+      tokenExpire: 3600000
+      models:
+        - glm-4.7
 
 # Native库配置
 native:

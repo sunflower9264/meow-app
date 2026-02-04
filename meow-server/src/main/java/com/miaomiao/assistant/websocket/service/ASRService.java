@@ -43,7 +43,7 @@ public class ASRService {
             try {
                 ConversationConfig config = configService.getConfigBySessionId(state.getSessionId());
                 BaseASRProvider.ASROptions asrOptions = BaseASRProvider.ASROptions.of(config.getAsrModel(), "opus");
-                BaseASRProvider.ASRResult result = asrManager.speechToText(audioData, asrOptions);
+                BaseASRProvider.ASRResult result = asrManager.speechToText(config.getAsrProvider(), audioData, asrOptions);
 
                 // 发送STT结果到客户端
                 messageSender.sendSTTResult(state, result.getText(), true);
@@ -71,6 +71,6 @@ public class ASRService {
     public BaseASRProvider.ASRResult transcribe(byte[] audioData) {
         ConversationConfig config = configService.getDefaultConfig();
         BaseASRProvider.ASROptions asrOptions = BaseASRProvider.ASROptions.of(config.getAsrModel(), "opus");
-        return asrManager.speechToText(audioData, asrOptions);
+        return asrManager.speechToText(config.getAsrProvider(), audioData, asrOptions);
     }
 }

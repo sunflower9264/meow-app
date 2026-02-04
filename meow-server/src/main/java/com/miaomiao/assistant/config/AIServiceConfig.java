@@ -5,6 +5,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -52,5 +53,10 @@ public class AIServiceConfig {
          * Token过期时间（毫秒）
          */
         private Integer tokenExpire = 3600000;
+
+        /**
+         * 支持的模型列表
+         */
+        private List<String> models;
     }
 }

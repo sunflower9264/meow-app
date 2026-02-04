@@ -25,7 +25,7 @@ public class SessionState {
 
     private final ByteArrayOutputStream audioBuffer = new ByteArrayOutputStream();
 
-    private final List<BaseLLMProvider.ChatMessage> conversationHistory = new CopyOnWriteArrayList<>();
+    private final List<BaseLLMProvider.AppChatMessage> conversationHistory = new CopyOnWriteArrayList<>();
 
     /**
      * 当前活跃的流订阅，用于取消操作
@@ -62,7 +62,7 @@ public class SessionState {
     /**
      * 获取对话历史的副本
      */
-    public List<BaseLLMProvider.ChatMessage> getConversationHistory() {
+    public List<BaseLLMProvider.AppChatMessage> getConversationHistory() {
         return new ArrayList<>(conversationHistory);
     }
 
@@ -70,7 +70,7 @@ public class SessionState {
      * 添加消息到对话历史
      */
     public void addMessage(String role, String content) {
-        conversationHistory.add(new BaseLLMProvider.ChatMessage(role, content));
+        conversationHistory.add(new BaseLLMProvider.AppChatMessage(role, content));
         // 保持历史在合理大小
         if (conversationHistory.size() > 50) {
             conversationHistory.subList(0, 10).clear();

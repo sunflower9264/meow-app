@@ -77,47 +77,57 @@ public class ASRManager {
     }
 
     /**
-     * 根据模型名称获取对应的Provider
-     */
-    public BaseASRProvider getProviderByModel(String model) {
-        BaseASRProvider provider = modelProviderMap.get(model);
-        if (provider == null) {
-            throw new IllegalArgumentException("不支持的ASR模型: " + model + "，支持的模型: " + modelProviderMap.keySet());
-        }
-        return provider;
-    }
-
-    /**
      * 语音转文字（同步）
      *
-     * @param audioData 音频数据
-     * @param options   ASR选项（包含模型名称）
+     * @param providerName Provider名称
+     * @param audioData    音频数据
+     * @param options      ASR选项（包含模型名称）
      */
-    public BaseASRProvider.ASRResult speechToText(byte[] audioData, BaseASRProvider.ASROptions options) {
-        BaseASRProvider provider = getProviderByModel(options.getModel());
+    public BaseASRProvider.ASRResult speechToText(String providerName, byte[] audioData, BaseASRProvider.ASROptions options) {
+        BaseASRProvider provider = getProvider(providerName);
         return provider.speechToText(audioData, options);
     }
 
     /**
      * 语音转文字（异步）
      *
-     * @param audioData 音频数据
-     * @param options   ASR选项（包含模型名称）
+     * @param providerName Provider名称
+     * @param audioData    音频数据
+     * @param options      ASR选项（包含模型名称）
      */
-    public CompletableFuture<BaseASRProvider.ASRResult> speechToTextAsync(byte[] audioData, BaseASRProvider.ASROptions options) {
-        BaseASRProvider provider = getProviderByModel(options.getModel());
+    public CompletableFuture<BaseASRProvider.ASRResult> speechToTextAsync(String providerName, byte[] audioData, BaseASRProvider.ASROptions options) {
+        BaseASRProvider provider = getProvider(providerName);
         return provider.speechToTextAsync(audioData, options);
     }
 
     /**
      * 语音转文字（流式）
      *
-     * @param audioStream 音频数据流
-     * @param options     ASR选项（包含模型名称）
+     * @param providerName Provider名称
+     * @param audioStream  音频数据流
+     * @param options      ASR选项（包含模型名称）
      */
-    public Flux<BaseASRProvider.ASRResult> speechToTextStream(Flux<byte[]> audioStream, BaseASRProvider.ASROptions options) {
-        BaseASRProvider provider = getProviderByModel(options.getModel());
+    public Flux<BaseASRProvider.ASRResult> speechToTextStream(String providerName, Flux<byte[]> audioStream, BaseASRProvider.ASROptions options) {
+        BaseASRProvider provider = getProvider(providerName);
         return provider.speechToTextStream(audioStream, options);
+    }
+
+    /**
+     * 根据名称获取Provider
+     */
+    public BaseASRProvider getProvider(String name) {
+        BaseASRProvider provider = providers.get(name);
+        if (provider == null) {
+            throw new IllegalArgumentException("未找到ASR Provider: " + name);
+        }
+        return provider;
+    }
+
+    /**
+     * 检查Provider是否存在
+     */
+    public boolean hasProvider(String name) {
+        return providers.containsKey(name);
     }
 
     /**

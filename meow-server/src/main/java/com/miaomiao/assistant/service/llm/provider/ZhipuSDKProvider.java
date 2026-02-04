@@ -18,22 +18,15 @@ import java.util.stream.Collectors;
 @Slf4j
 public class ZhipuSDKProvider extends BaseLLMProvider {
 
-    /**
-     * 该Provider支持的模型列表
-     */
-    private static final Set<String> SUPPORTED_MODELS = Set.of(
-            "glm-4", "glm-4-plus", "glm-4-air", "glm-4-airx", 
-            "glm-4-flash", "glm-4-flashx", "glm-4-long",
-            "glm-4.7"
-    );
-
     private final ZhipuAiClient client;
+    private final Set<String> supportedModels;
 
     public ZhipuSDKProvider(String providerName, String apiKey, String baseUrl,
-                           boolean enableTokenCache, int tokenExpire) {
+                           boolean enableTokenCache, int tokenExpire, Set<String> supportedModels) {
         this.providerName = providerName;
         this.apiKey = apiKey;
         this.baseUrl = baseUrl;
+        this.supportedModels = supportedModels;
 
         ZhipuAiClient.Builder builder = ZhipuAiClient.builder()
                 .apiKey(apiKey)
@@ -44,21 +37,21 @@ public class ZhipuSDKProvider extends BaseLLMProvider {
         }
 
         this.client = builder.build();
-        log.info("初始化智谱SDK Provider: name={}, 支持模型: {}", providerName, SUPPORTED_MODELS);
+        log.info("初始化智谱SDK Provider: name={}, 支持模型: {}", providerName, supportedModels);
     }
 
     @Override
     public boolean supportsModel(String model) {
-        return SUPPORTED_MODELS.contains(model);
+        return supportedModels.contains(model);
     }
 
     @Override
     public Set<String> getSupportedModels() {
-        return SUPPORTED_MODELS;
+        return supportedModels;
     }
 
     @Override
-    public String chat(List<ChatMessage> messages, LLMOptions options) {
+    public String chat(List<AppChatMessage> messages, LLMOptions options) {
         try {
             ChatCompletionCreateParams request = buildRequest(messages, options, false);
             ChatCompletionResponse response = client.chat().createChatCompletion(request);
@@ -75,7 +68,7 @@ public class ZhipuSDKProvider extends BaseLLMProvider {
     }
 
     @Override
-    public Flux<LLMResponse> chatStream(List<ChatMessage> messages, LLMOptions options) {
+    public Flux<AppLLMResponse> chatStream(List<AppChatMessage> messages, LLMOptions options) {
         try {
             ChatCompletionCreateParams request = buildRequest(messages, options, true);
             ChatCompletionResponse response = client.chat().createChatCompletion(request);
@@ -98,11 +91,11 @@ public class ZhipuSDKProvider extends BaseLLMProvider {
         }
     }
 
-    private ChatCompletionCreateParams buildRequest(List<ChatMessage> messages, 
+    private ChatCompletionCreateParams buildRequest(List<AppChatMessage> messages,
                                                     LLMOptions options, 
                                                     boolean stream) {
-        List<ai.z.openapi.service.model.ChatMessage> sdkMessages = messages.stream()
-                .map(msg -> ai.z.openapi.service.model.ChatMessage.builder()
+        List<ChatMessage> sdkMessages = messages.stream()
+                .map(msg -> ChatMessage.builder()
                         .role(msg.role())
                         .content(msg.content())
                         .build())
@@ -117,11 +110,11 @@ public class ZhipuSDKProvider extends BaseLLMProvider {
                 .build();
     }
 
-    private LLMResponse convertToResponse(ModelData modelData) {
+    private AppLLMResponse convertToResponse(ModelData modelData) {
         String delta = modelData.getDelta();
         boolean isFinished = modelData.getChoices() != null
                 && !modelData.getChoices().isEmpty()
                 && "stop".equals(modelData.getChoices().get(0).getFinishReason());
-        return new LLMResponse(delta != null ? delta : "", isFinished);
+        return new AppLLMResponse(delta != null ? delta : "", isFinished);
     }
 }
