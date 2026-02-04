@@ -55,4 +55,16 @@ public class ConversationConfig {
      */
     @Builder.Default
     private String ttsFormat = "pcm";
+
+    public String getASRModelKey(){
+        return asrProvider + ":" + asrModel;
+    }
+
+    public String getLMModelKey(){
+        return llmProvider + ":" + llmModel;
+    }
+
+    public String getTTSModelKey(){
+        return ttsProvider + ":" + ttsModel;
+    }
 }

@@ -5,17 +5,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 /**
- * 对话配置服务
- * 负责获取对话所需的模型配置
- * TODO: 后续集成数据库后，从数据库读取配置
+ * 对话配置服务 负责获取对话所需的模型配置 TODO: 后续集成数据库后，从数据库读取配置
  */
 @Slf4j
 @Service
 public class ConversationConfigService {
 
     /**
-     * 获取默认对话配置
-     * TODO: 后续从数据库读取
+     * 获取默认对话配置 TODO: 后续从数据库读取
      *
      * @return 对话配置
      */
@@ -23,8 +20,8 @@ public class ConversationConfigService {
         return ConversationConfig.builder()
                 .asrProvider("zhipu")
                 .asrModel("chirp-beta")
-                .llmProvider("zhipu")
-                .llmModel("glm-4-flash")
+                .llmProvider("zhipu-coding")
+                .llmModel("glm-4.7")
                 .ttsProvider("zhipu")
                 .ttsModel("glm-tts")
                 .ttsVoice("female")
@@ -33,8 +30,7 @@ public class ConversationConfigService {
     }
 
     /**
-     * 根据用户ID获取对话配置
-     * TODO: 后续从数据库读取用户个性化配置
+     * 根据用户ID获取对话配置 TODO: 后续从数据库读取用户个性化配置
      *
      * @param userId 用户ID
      * @return 对话配置
@@ -46,8 +42,7 @@ public class ConversationConfigService {
     }
 
     /**
-     * 根据会话ID获取对话配置
-     * TODO: 后续从数据库读取会话配置
+     * 根据会话ID获取对话配置 TODO: 后续从数据库读取会话配置
      *
      * @param sessionId 会话ID
      * @return 对话配置

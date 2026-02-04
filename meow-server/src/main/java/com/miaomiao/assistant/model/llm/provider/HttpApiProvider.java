@@ -1,10 +1,14 @@
-package com.miaomiao.assistant.service.llm.provider;
+package com.miaomiao.assistant.model.llm.provider;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.miaomiao.assistant.service.llm.BaseLLMProvider;
+import com.miaomiao.assistant.config.AIServiceConfig;
+import com.miaomiao.assistant.model.llm.AppChatMessage;
+import com.miaomiao.assistant.model.llm.AppLLMResponse;
+import com.miaomiao.assistant.model.llm.BaseLLMProvider;
+import com.miaomiao.assistant.model.llm.LLMOptions;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
 import okhttp3.sse.EventSource;
@@ -15,12 +19,10 @@ import reactor.core.publisher.Sinks;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 通用HTTP API Provider
- * 支持OpenAI格式的API（智谱Coding端点等）
+ * 通用HTTP API Provider 支持OpenAI格式的API（智谱Coding端点等）
  */
 @Slf4j
 public class HttpApiProvider extends BaseLLMProvider {
@@ -29,37 +31,25 @@ public class HttpApiProvider extends BaseLLMProvider {
 
     private final OkHttpClient client;
     private final ObjectMapper objectMapper;
-    private final Set<String> supportedModels;
 
-    public HttpApiProvider(String providerName, String apiKey, String baseUrl, Set<String> supportedModels) {
-        this.providerName = providerName;
-        this.apiKey = apiKey;
-        this.baseUrl = baseUrl;
-        this.supportedModels = supportedModels;
+    public HttpApiProvider(String providerName, AIServiceConfig.ProviderConfig providerConfig, String baseUrl) {
+        super.providerName = providerName;
+        super.apiKey = providerConfig.getApiKey();
+        super.baseUrl = baseUrl;
         this.client = new OkHttpClient.Builder()
                 .connectTimeout(30, TimeUnit.SECONDS)
                 .readTimeout(300, TimeUnit.SECONDS)
                 .writeTimeout(30, TimeUnit.SECONDS)
                 .build();
         this.objectMapper = new ObjectMapper();
-        log.info("初始化HTTP API Provider: name={}, 支持模型: {}", providerName, supportedModels);
-    }
-
-    @Override
-    public boolean supportsModel(String model) {
-        return supportedModels.contains(model);
-    }
-
-    @Override
-    public Set<String> getSupportedModels() {
-        return supportedModels;
+        log.info("初始化HTTP API Provider: name={}", providerName);
     }
 
     @Override
     public String chat(List<AppChatMessage> messages, LLMOptions options) {
         try {
             Request request = buildHttpRequest(messages, options, false);
-            
+
             try (Response response = client.newCall(request).execute()) {
                 handleErrorResponse(response);
                 String responseBody = response.body().string();
@@ -103,11 +93,11 @@ public class HttpApiProvider extends BaseLLMProvider {
             ObjectNode root = objectMapper.createObjectNode();
             root.put("model", options.getModel());
             root.put("stream", stream);
-            
+
             if (options.getTemperature() != null) {
                 root.put("temperature", options.getTemperature());
             }
-            
+
             if (options.getMaxTokens() != null) {
                 root.put("max_tokens", options.getMaxTokens());
             }

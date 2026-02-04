@@ -7,8 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
- * 文本消息处理器
- * 处理客户端发送的文本输入，直接进入LLM对话流程
+ * 文本消息处理器 处理客户端发送的文本输入，直接进入LLM对话流程
  */
 @Slf4j
 @Component
@@ -39,6 +38,6 @@ public class TextMessageHandler implements MessageHandler<StringMessage> {
         }
 
         log.debug("处理文本输入: {}", text);
-        conversationService.processConversation(state, text);
+        conversationService.processTextInput(state, text);
     }
 }

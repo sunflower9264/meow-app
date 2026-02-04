@@ -5,14 +5,13 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
- * AI服务统一配置
- * 只负责配置各服务商的凭证信息（API Key、BaseURL等）
- * 具体使用哪个模型由调用时指定，不由配置决定
+ * AI服务统一配置 配置各服务商的凭证和支持的模型（按类型区分ASR/LLM/TTS）
  */
+
 @Data
 @Configuration
 @ConfigurationProperties(prefix = "ai")
@@ -22,13 +21,13 @@ public class AIServiceConfig {
      * 各服务商配置
      * key: 服务商标识 (zhipu, openai, local等)
      */
-    private Map<String, ProviderCredential> providers = new HashMap<>();
+    private Map<String, ProviderConfig> providers = new HashMap<>();
 
     /**
-     * 服务商凭证配置
+     * 服务商配置（包含凭证和模型列表）
      */
     @Data
-    public static class ProviderCredential {
+    public static class ProviderConfig {
         /**
          * 是否启用
          */
@@ -45,7 +44,7 @@ public class AIServiceConfig {
         private String baseUrl;
 
         /**
-         * 是否启用Token缓存（部分SDK支持）
+         * 是否启用Token缓存
          */
         private Boolean enableTokenCache = true;
 
@@ -55,8 +54,18 @@ public class AIServiceConfig {
         private Integer tokenExpire = 3600000;
 
         /**
-         * 支持的模型列表
+         * 支持的ASR模型列表
          */
-        private List<String> models;
+        private Set<String> asrModels;
+
+        /**
+         * 支持的LLM模型列表
+         */
+        private Set<String> llmModels;
+
+        /**
+         * 支持的TTS模型列表
+         */
+        private Set<String> ttsModels;
     }
 }

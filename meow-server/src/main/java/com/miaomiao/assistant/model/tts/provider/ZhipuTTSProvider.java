@@ -1,16 +1,18 @@
-package com.miaomiao.assistant.service.tts.provider;
+package com.miaomiao.assistant.model.tts.provider;
 
 import ai.z.openapi.ZhipuAiClient;
 import ai.z.openapi.service.audio.AudioSpeechRequest;
 import ai.z.openapi.service.audio.AudioSpeechStreamingResponse;
 import ai.z.openapi.service.model.ModelData;
-import com.miaomiao.assistant.service.tts.BaseTTSProvider;
+import com.miaomiao.assistant.config.AIServiceConfig;
+import com.miaomiao.assistant.model.tts.BaseTTSProvider;
+import com.miaomiao.assistant.model.tts.TTSAudio;
+import com.miaomiao.assistant.model.tts.TTSOptions;
 import io.reactivex.rxjava3.core.Flowable;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 
 import java.util.Base64;
-import java.util.Set;
 
 /**
  * 智谱AI TTS提供商
@@ -18,24 +20,19 @@ import java.util.Set;
 @Slf4j
 public class ZhipuTTSProvider extends BaseTTSProvider {
 
-    private static final Set<String> SUPPORTED_MODELS = Set.of("glm-tts");
-
     private final ZhipuAiClient client;
 
-    public ZhipuTTSProvider(String providerName, ZhipuAiClient client) {
-        this.providerName = providerName;
-        this.client = client;
-        log.info("初始化智谱TTS Provider: {}", providerName);
-    }
-
-    @Override
-    public boolean supportsModel(String model) {
-        return SUPPORTED_MODELS.contains(model);
-    }
-
-    @Override
-    public String[] getSupportedModels() {
-        return SUPPORTED_MODELS.toArray(new String[0]);
+    public ZhipuTTSProvider(String providerName, AIServiceConfig.ProviderConfig providerConfig) {
+        super.providerName = providerName;
+        super.apiKey = providerConfig.getApiKey();
+        super.baseUrl = providerConfig.getBaseUrl();
+        super.enableTokenCache = providerConfig.getEnableTokenCache();
+        ZhipuAiClient.Builder builder = ZhipuAiClient.builder().apiKey(providerConfig.getApiKey());
+        if (providerConfig.getEnableTokenCache()) {
+            super.tokenExpire = providerConfig.getTokenExpire();
+            builder.enableTokenCache().tokenExpire(super.tokenExpire);
+        }
+        this.client = builder.build();
     }
 
     @Override

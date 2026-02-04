@@ -1,53 +1,36 @@
-package com.miaomiao.assistant.service.llm.provider;
+package com.miaomiao.assistant.model.llm.provider;
 
 import ai.z.openapi.ZhipuAiClient;
 import ai.z.openapi.service.model.*;
-import com.miaomiao.assistant.service.llm.BaseLLMProvider;
+import com.miaomiao.assistant.config.AIServiceConfig;
+import com.miaomiao.assistant.model.llm.AppChatMessage;
+import com.miaomiao.assistant.model.llm.AppLLMResponse;
+import com.miaomiao.assistant.model.llm.BaseLLMProvider;
+import com.miaomiao.assistant.model.llm.LLMOptions;
 import io.reactivex.rxjava3.core.Flowable;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * 智谱AI SDK Provider（通用端点）
- * 使用: https://open.bigmodel.cn/api/paas/v4/
+ * 智谱AI SDK Provider（通用端点） 使用: https://open.bigmodel.cn/api/paas/v4/
  */
 @Slf4j
 public class ZhipuSDKProvider extends BaseLLMProvider {
 
     private final ZhipuAiClient client;
-    private final Set<String> supportedModels;
 
-    public ZhipuSDKProvider(String providerName, String apiKey, String baseUrl,
-                           boolean enableTokenCache, int tokenExpire, Set<String> supportedModels) {
-        this.providerName = providerName;
-        this.apiKey = apiKey;
-        this.baseUrl = baseUrl;
-        this.supportedModels = supportedModels;
-
-        ZhipuAiClient.Builder builder = ZhipuAiClient.builder()
-                .apiKey(apiKey)
-                .baseUrl(baseUrl);
-
-        if (enableTokenCache) {
-            builder.enableTokenCache().tokenExpire(tokenExpire);
+    public ZhipuSDKProvider(String providerName, AIServiceConfig.ProviderConfig providerConfig) {
+        super.providerName = providerName;
+        super.apiKey = providerConfig.getApiKey();
+        ZhipuAiClient.Builder builder = ZhipuAiClient.builder().apiKey(providerConfig.getApiKey());
+        if (providerConfig.getEnableTokenCache()) {
+            builder.enableTokenCache().tokenExpire(providerConfig.getTokenExpire());
         }
-
         this.client = builder.build();
-        log.info("初始化智谱SDK Provider: name={}, 支持模型: {}", providerName, supportedModels);
-    }
-
-    @Override
-    public boolean supportsModel(String model) {
-        return supportedModels.contains(model);
-    }
-
-    @Override
-    public Set<String> getSupportedModels() {
-        return supportedModels;
+        log.info("初始化智谱SDK Provider: name={}", providerName);
     }
 
     @Override
@@ -59,7 +42,7 @@ public class ZhipuSDKProvider extends BaseLLMProvider {
             if (!response.isSuccess()) {
                 throw new RuntimeException("LLM请求失败: " + response.getMsg());
             }
-            
+
             return response.getData().getChoices().get(0).getMessage().getContent().toString();
         } catch (Exception e) {
             log.error("智谱SDK非流式请求失败", e);
@@ -92,13 +75,13 @@ public class ZhipuSDKProvider extends BaseLLMProvider {
     }
 
     private ChatCompletionCreateParams buildRequest(List<AppChatMessage> messages,
-                                                    LLMOptions options, 
-                                                    boolean stream) {
+            LLMOptions options,
+            boolean stream) {
         List<ChatMessage> sdkMessages = messages.stream()
                 .map(msg -> ChatMessage.builder()
-                        .role(msg.role())
-                        .content(msg.content())
-                        .build())
+                .role(msg.role())
+                .content(msg.content())
+                .build())
                 .collect(Collectors.toList());
 
         return ChatCompletionCreateParams.builder()

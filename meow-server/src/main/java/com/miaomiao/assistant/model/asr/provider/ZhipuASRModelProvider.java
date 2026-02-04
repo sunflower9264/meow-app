@@ -1,9 +1,12 @@
-package com.miaomiao.assistant.service.asr.provider;
+package com.miaomiao.assistant.model.asr.provider;
 
 import ai.z.openapi.ZhipuAiClient;
 import ai.z.openapi.service.audio.AudioTranscriptionRequest;
 import ai.z.openapi.service.audio.AudioTranscriptionResponse;
-import com.miaomiao.assistant.service.asr.BaseASRProvider;
+import com.miaomiao.assistant.config.AIServiceConfig;
+import com.miaomiao.assistant.model.asr.ASROptions;
+import com.miaomiao.assistant.model.asr.ASRResult;
+import com.miaomiao.assistant.model.asr.BaseASRModelProvider;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 
@@ -11,32 +14,26 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Set;
 
 /**
  * 智谱AI ASR提供商
  */
 @Slf4j
-public class ZhipuASRProvider extends BaseASRProvider {
-
-    private static final Set<String> SUPPORTED_MODELS = Set.of("chirp-beta");
+public class ZhipuASRModelProvider extends BaseASRModelProvider {
 
     private final ZhipuAiClient client;
 
-    public ZhipuASRProvider(String providerName, ZhipuAiClient client) {
-        this.providerName = providerName;
-        this.client = client;
-        log.info("初始化智谱ASR Provider: {}", providerName);
-    }
-
-    @Override
-    public boolean supportsModel(String model) {
-        return SUPPORTED_MODELS.contains(model);
-    }
-
-    @Override
-    public String[] getSupportedModels() {
-        return SUPPORTED_MODELS.toArray(new String[0]);
+    public ZhipuASRModelProvider(String providerName, AIServiceConfig.ProviderConfig providerConfig) {
+        super.providerName = providerName;
+        super.apiKey = providerConfig.getApiKey();
+        super.baseUrl = providerConfig.getBaseUrl();
+        super.enableTokenCache = providerConfig.getEnableTokenCache();
+        ZhipuAiClient.Builder builder = ZhipuAiClient.builder().apiKey(providerConfig.getApiKey());
+        if (providerConfig.getEnableTokenCache()) {
+            super.tokenExpire = providerConfig.getTokenExpire();
+            builder.enableTokenCache().tokenExpire(super.tokenExpire);
+        }
+        this.client = builder.build();
     }
 
     @Override

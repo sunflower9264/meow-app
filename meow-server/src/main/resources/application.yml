@@ -40,17 +40,20 @@ spring:
       # 设置总上传的文件大小
       max-request-size: 20MB
 
-# AI服务统一配置 - 只配置凭证，使用时通过模型名选择
+# AI服务统一配置
 ai:
   providers:
-    # 智谱AI - 支持LLM/ASR/TTS
+    # 智谱AI
     zhipu:
       enabled: true
       apiKey: ${CHATGLM_API_KEY}
-      baseUrl: https://open.bigmodel.cn/api/paas/v4/
       enableTokenCache: true
       tokenExpire: 3600000
-      models:
+      # ASR模型
+      asr-models:
+        - chirp-beta
+      # LLM模型
+      llm-models:
         - glm-4
         - glm-4-plus
         - glm-4-air
@@ -58,20 +61,23 @@ ai:
         - glm-4-flash
         - glm-4-flashx
         - glm-4-long
-        - glm-4.7
+      # TTS模型
+      tts-models:
+        - glm-tts
+    # 智谱AI Coding专用
     zhipu-coding:
       enabled: true
       apiKey: ${CHATGLM_API_KEY}
-      baseUrl: https://open.bigmodel.cn/api/paas/v4/
+      baseUrl: https://open.bigmodel.cn/api/coding/paas/v4/chat/completions
       enableTokenCache: true
       tokenExpire: 3600000
-      models:
+      llm-models:
         - glm-4.7
 
 # Native库配置
+# Native库文件夹路径
+# 文件夹下应包含 opus-jni-native.dll 或 libopus-jni-native.so
+# 留空则自动检测：优先从工作目录的native文件夹加载，其次从系统库路径加载
 native:
   opus:
-    # Native库文件夹路径
-    # 文件夹下应包含 opus-jni-native.dll 或 libopus-jni-native.so
-    # 留空则自动检测：优先从工作目录的native文件夹加载，其次从系统库路径加载
-    library-dir: D:/myworkspace/meow/meow-server/native
+    library-dir: D:/pyworkspace/meow-app/meow-server/native
