@@ -9,7 +9,7 @@ public class LLMOptions {
 
     private Double temperature = 0.7;
 
-    private Integer maxTokens = 2000;
+    private Integer maxTokens = 1000;
 
     public static LLMOptions of(String model) {
         LLMOptions options = new LLMOptions();

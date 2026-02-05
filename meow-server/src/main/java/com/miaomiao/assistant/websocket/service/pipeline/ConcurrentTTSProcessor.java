@@ -8,9 +8,7 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.ByteArrayOutputStream;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -34,15 +32,6 @@ import java.util.function.Consumer;
  */
 @Slf4j
 public class ConcurrentTTSProcessor implements AutoCloseable {
-
-    // 智谱TTS API文本长度限制
-    private static final int TTS_MAX_TEXT_LENGTH = 1024;
-    
-    // 用于拆分长文本的标点符号（优先级从高到低）
-    private static final Set<Character> SPLIT_PUNCTUATIONS = Set.of(
-            '。', '？', '！', '；', '.', '?', '!', ';',  // 句子结束
-            '，', ',', '、', '：', ':'                     // 逗号等
-    );
 
     /**
      * TTS 任务
@@ -172,13 +161,12 @@ public class ConcurrentTTSProcessor implements AutoCloseable {
 
     /**
      * 提交 TTS 任务（非阻塞）
-     * 如果文本超过1024字符会自动拆分成多个子任务
      *
      * @param text             待转换文本
      * @param type             聚合类型
      * @param providerModelKey TTS 提供者和模型
      * @param options          TTS 选项
-     * @return 最后一个任务的序号
+     * @return 任务序号
      */
     public int submitTask(String text, TextAggregator.AggregationType type,
                           String providerModelKey, TTSOptions options) {
@@ -187,69 +175,10 @@ public class ConcurrentTTSProcessor implements AutoCloseable {
             return -1;
         }
 
-        // 检查文本长度，超过限制则拆分
-        if (text.length() > TTS_MAX_TEXT_LENGTH) {
-            List<String> chunks = splitLongText(text, TTS_MAX_TEXT_LENGTH);
-            int lastSeq = -1;
-            for (String chunk : chunks) {
-                lastSeq = submitSingleTask(chunk, type, providerModelKey, options);
-            }
-            return lastSeq;
-        }
-
-        return submitSingleTask(text, type, providerModelKey, options);
-    }
-
-    /**
-     * 提交单个TTS任务（内部方法，不做长度检查）
-     */
-    private int submitSingleTask(String text, TextAggregator.AggregationType type,
-                                  String providerModelKey, TTSOptions options) {
         int sequence = sequenceCounter.getAndIncrement();
         TTSTask task = new TTSTask(sequence, text, type, providerModelKey, options);
         ttsExecutor.submit(() -> executeTask(task));
         return sequence;
-    }
-
-    /**
-     * 拆分超长文本
-     * 优先在标点符号处拆分，保证语义完整性
-     */
-    private List<String> splitLongText(String text, int maxLength) {
-        List<String> result = new ArrayList<>();
-        int start = 0;
-        
-        while (start < text.length()) {
-            int end = Math.min(start + maxLength, text.length());
-            
-            if (end < text.length()) {
-                // 在maxLength范围内寻找最后一个标点符号
-                int splitPos = findLastSplitPosition(text, start, end);
-                if (splitPos > start) {
-                    end = splitPos + 1; // 包含标点符号
-                }
-            }
-            
-            String chunk = text.substring(start, end).trim();
-            if (!chunk.isEmpty()) {
-                result.add(chunk);
-            }
-            start = end;
-        }
-        
-        return result;
-    }
-
-    /**
-     * 在指定范围内查找最后一个可拆分位置
-     */
-    private int findLastSplitPosition(String text, int start, int end) {
-        for (int i = end - 1; i > start; i--) {
-            if (SPLIT_PUNCTUATIONS.contains(text.charAt(i))) {
-                return i;
-            }
-        }
-        return end; // 没找到标点，强制在maxLength处拆分
     }
 
     /**

@@ -180,10 +180,9 @@ public class ConcurrentTTSFrameProcessor implements FrameProcessor {
      * 提交 TTS 任务
      */
     private void submitTTSTask(String text, TextAggregator.AggregationType type) {
-        // 过滤 Markdown 格式（移除代码块、标记符号等）
-        String filteredText = MarkdownTextFilter.getInstance().filter(text);
-        if (filteredText == null || filteredText.trim().isEmpty()) {
-            log.debug("Markdown 过滤后文本为空，跳过 TTS: {}", text);
+        // 通过预处理管道过滤和拆分文本
+        java.util.List<String> processedTexts = TextPreProcessorPipeline.getInstance().process(text);
+        if (processedTexts.isEmpty()) {
             return;
         }
 
@@ -198,7 +197,9 @@ public class ConcurrentTTSFrameProcessor implements FrameProcessor {
                     .format(config.getTtsFormat())
                     .build();
 
-            concurrentProcessor.submitTask(filteredText, type, config.getTTSModelKey(), options);
+            for (String processedText : processedTexts) {
+                concurrentProcessor.submitTask(processedText, type, config.getTTSModelKey(), options);
+            }
         } catch (Exception e) {
             log.error("提交 TTS 任务失败: text={}", text, e);
         }
