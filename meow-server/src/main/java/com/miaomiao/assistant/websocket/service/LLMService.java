@@ -96,9 +96,11 @@ public class LLMService {
         if (content != null && !content.isEmpty()) {
             fullResponse.append(content);
 
+            // 记录 LLM 首次响应时间（性能指标）
+            state.getPerformanceMetrics().recordLLMFirstResponse();
+
             // 1. 发送流式token给前端（用于打字效果）
             try {
-                log.debug("[LLM Token] token='{}', accumulated_len={}", content, fullResponse.length());
                 messageSender.sendLLMToken(state, content, fullResponse.toString(), false);
             } catch (IOException e) {
                 log.error("发送LLM token消息失败", e);

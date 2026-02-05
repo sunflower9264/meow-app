@@ -20,8 +20,8 @@ public class ConversationConfigService {
         return ConversationConfig.builder()
                 .asrProvider("zhipu")
                 .asrModel("chirp-beta")
-                .llmProvider("zhipu-coding")
-                .llmModel("glm-4.7")
+                .llmProvider("zhipu")
+                .llmModel("glm-4.5")
                 .ttsProvider("zhipu")
                 .ttsModel("glm-tts")
                 .ttsVoice("female")
@@ -50,8 +50,6 @@ public class ConversationConfigService {
      * @return 对话配置
      */
     public ConversationConfig getConfigBySessionId(String sessionId) {
-        // 暂时返回默认配置
-        log.debug("获取会话[{}]的对话配置，暂时使用默认配置", sessionId);
         return getDefaultConfig();
     }
 }

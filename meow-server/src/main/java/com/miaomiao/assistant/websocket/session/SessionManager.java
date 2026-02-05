@@ -24,7 +24,6 @@ public class SessionManager {
     public SessionState createSession(WebSocketSession session) {
         SessionState state = new SessionState(session);
         sessionStates.put(session.getId(), state);
-        log.debug("创建会话状态: {}", session.getId());
         return state;
     }
 

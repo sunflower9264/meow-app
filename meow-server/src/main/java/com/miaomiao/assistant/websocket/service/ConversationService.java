@@ -85,6 +85,9 @@ public class ConversationService {
         // 重置中止状态
         state.resetAborted();
 
+        // 记录用户输入开始时间（性能指标）
+        state.getPerformanceMetrics().recordUserInputStart();
+
         // 2. LLM: 流式对话，返回句子流
         Flux<String> sentenceStream = llmService.processLLMStream(state, text, config);
 

@@ -16,11 +16,4 @@ public class LLMOptions {
         options.model = model;
         return options;
     }
-
-    public static LLMOptions of(String model, Double temperature, Integer maxTokens) {
-        LLMOptions options = of(model);
-        options.temperature = temperature;
-        options.maxTokens = maxTokens;
-        return options;
-    }
 }

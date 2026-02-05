@@ -51,28 +51,25 @@ ai:
       tokenExpire: 3600000
       # ASR模型
       asr-models:
-        - chirp-beta
+        - glm-asr-2512
       # LLM模型
       llm-models:
-        - glm-4
-        - glm-4-plus
-        - glm-4-air
-        - glm-4-airx
-        - glm-4-flash
-        - glm-4-flashx
-        - glm-4-long
+        - glm-4.5
+        - glm-4.6
+        - glm-4.7
+        - glm-4.7-flash
       # TTS模型
       tts-models:
         - glm-tts
     # 智谱AI Coding专用
-    zhipu-coding:
-      enabled: true
-      apiKey: ${CHATGLM_API_KEY}
-      baseUrl: https://open.bigmodel.cn/api/coding/paas/v4/chat/completions
-      enableTokenCache: true
-      tokenExpire: 3600000
-      llm-models:
-        - glm-4.7
+#    zhipu-coding:
+#      enabled: true
+#      apiKey: ${CHATGLM_API_KEY}
+#      baseUrl: https://open.bigmodel.cn/api/coding/paas/v4/chat/completions
+#      enableTokenCache: true
+#      tokenExpire: 3600000
+#      llm-models:
+#        - glm-4.7
 
 # Native库配置
 # Native库文件夹路径
@@ -81,3 +78,12 @@ ai:
 native:
   opus:
     library-dir: D:/myworkspace/meow/meow-server/native
+
+# TTS配置
+tts:
+  concurrent:
+    # 是否启用并发TTS模式（多线程并发调用TTS API，有序播放）
+    # 启用后可显著降低LLM快速返回时的整体延迟
+    enabled: true
+    # 最大并发数（建议2-4，过高可能导致TTS服务限流）
+    max-concurrency: 3

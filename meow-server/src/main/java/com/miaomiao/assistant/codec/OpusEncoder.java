@@ -89,16 +89,19 @@ public class OpusEncoder {
                 offset += frameSizeBytes;
             }
 
-            // 丢弃剩余不足一帧的数据（最多20ms）
+            // 处理剩余不足一帧的数据：补0凑成完整帧
             int remaining = pcmData.length - offset;
             if (remaining > 0) {
-                log.debug("丢弃最后{}字节不完整帧数据（需要{}字节才能构成完整帧）", remaining, frameSizeBytes);
+                byte[] frameData = new byte[frameSizeBytes];
+                System.arraycopy(pcmData, offset, frameData, 0, remaining);
+                // 剩余部分自动为0（Java数组初始化）
+
+                byte[] encoded = opusCodec.encodeFrame(frameData);
+                outputStream.write(encoded.length & 0xFF);
+                outputStream.write((encoded.length >> 8) & 0xFF);
+                outputStream.write(encoded);
             }
-
-            byte[] result = outputStream.toByteArray();
-            log.debug("PCM->Opus编码成功: 输入{}字节 -> 输出{}字节", pcmData.length, result.length);
-            return result;
-
+            return outputStream.toByteArray();
         } catch (Exception e) {
             log.error("PCM转Opus编码失败", e);
             throw new RuntimeException("音频编码失败", e);

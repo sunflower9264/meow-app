@@ -32,7 +32,7 @@ public class WebSocketMessageSender {
     }
 
     /**
-     * 发送通用消息
+     * 发送通用消息（线程安全）
      */
     public void sendMessage(WebSocketSession session, WSMessage message) throws IOException {
         if (session == null || !session.isOpen()) {
@@ -40,7 +40,11 @@ public class WebSocketMessageSender {
             return;
         }
         String json = objectMapper.writeValueAsString(message);
-        session.sendMessage(new TextMessage(json));
+        synchronized (session) {
+            if (session.isOpen()) {
+                session.sendMessage(new TextMessage(json));
+            }
+        }
     }
 
     /**
@@ -111,7 +115,7 @@ public class WebSocketMessageSender {
     }
 
     /**
-     * 发送错误消息
+     * 发送错误消息（线程安全）
      */
     public void sendError(WebSocketSession session, String error) throws IOException {
         if (session == null || !session.isOpen()) {
@@ -124,7 +128,11 @@ public class WebSocketMessageSender {
         errorData.put("timestamp", System.currentTimeMillis());
 
         String json = objectMapper.writeValueAsString(errorData);
-        session.sendMessage(new TextMessage(json));
+        synchronized (session) {
+            if (session.isOpen()) {
+                session.sendMessage(new TextMessage(json));
+            }
+        }
     }
 
     /**

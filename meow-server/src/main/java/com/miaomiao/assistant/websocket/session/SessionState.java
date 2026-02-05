@@ -35,8 +35,15 @@ public class SessionState {
     @Getter
     private volatile boolean aborted = false;
 
+    /**
+     * 性能指标跟踪
+     */
+    @Getter
+    private final PerformanceMetrics performanceMetrics;
+
     public SessionState(WebSocketSession session) {
         this.session = session;
+        this.performanceMetrics = new PerformanceMetrics(session.getId());
     }
 
     /**
@@ -117,6 +124,8 @@ public class SessionState {
         } catch (IOException e) {
             // 忽略
         }
+        // 关闭性能指标的文件保存线程池
+        performanceMetrics.shutdown();
     }
 
     /**
