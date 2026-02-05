@@ -3,5 +3,8 @@
     "allow": [
       "mcp__web-reader__webReader"
     ]
+  },
+  "enabledPlugins": {
+    "code-simplifier@claude-plugins-official": true
   }
 }

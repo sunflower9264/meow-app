@@ -4,7 +4,12 @@
       "mcp__zread__get_repo_structure",
       "mcp__web-search-prime__webSearchPrime",
       "Bash(mvn compile:*)",
-      "Bash(mvn:*)"
+      "Bash(mvn:*)",
+      "mcp__zread__search_doc",
+      "mcp__plugin_context7_context7__resolve-library-id"
+    ],
+    "additionalDirectories": [
+      "d:\\myworkspace\\meow"
     ]
   }
 }

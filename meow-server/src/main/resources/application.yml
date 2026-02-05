@@ -80,4 +80,4 @@ ai:
 # 留空则自动检测：优先从工作目录的native文件夹加载，其次从系统库路径加载
 native:
   opus:
-    library-dir: D:/pyworkspace/meow-app/meow-server/native
+    library-dir: D:/myworkspace/meow/meow-server/native

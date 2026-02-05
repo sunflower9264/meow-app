@@ -26,9 +26,12 @@
         </div>
         <span class="msg-time">{{ formatTime(msg.timestamp) }}</span>
       </div>
-    </main>
 
-    <div v-if="currentSentence" class="typing">{{ currentSentence }}</div>
+      <!-- 正在输入中的AI消息气泡 -->
+      <div v-if="currentSentence" class="msg assistant">
+        <div class="msg-content typing-bubble">{{ currentSentence }}<span class="cursor">|</span></div>
+      </div>
+    </main>
 
     <footer class="input-bar">
       <button @click="toggleMode" class="mode-btn">
@@ -112,7 +115,6 @@ const canRecord = computed(() => isConnected.value && micPermission.value !== 'd
 
 // WebSocket message handlers
 websocketStore.onMessage((data) => {
-  console.log('Received message:', data)
   handleMessage(data)
 })
 
@@ -121,7 +123,7 @@ function goBack() {
   router.push('/')
 }
 
-function handleMessage(data) {
+async function handleMessage(data) {
   const msg = {
     id: Date.now() + Math.random(),
     timestamp: Date.now(),
@@ -142,6 +144,27 @@ function handleMessage(data) {
     msg.content = data.text
     messages.value.push(msg)
     scrollToBottom()
+  } else if (data.type === 'llm_token') {
+    // LLM streaming tokens for typing effect
+    console.log('[llm_token]', data.token, 'acc_len:', data.accumulated?.length, 'fin:', data.finished)
+    if (data.finished) {
+      // Complete response - add to messages and clear typing indicator
+      if (data.accumulated) {
+        messages.value.push({
+          id: Date.now() + Math.random(),
+          type: 'text',
+          role: 'assistant',
+          content: data.accumulated,
+          timestamp: Date.now()
+        })
+      }
+      currentSentence.value = ''
+      scrollToBottom()
+    } else {
+      // Show accumulated text as typing indicator
+      currentSentence.value = data.accumulated || ''
+      scrollToBottom()
+    }
   } else if (data.type === 'tts') {
     // TTS audio from backend - raw Opus frames, decode and play via Web Audio API
     if (data.data && data.data.length > 0) {
@@ -571,6 +594,21 @@ onUnmounted(async () => {
   background: #fafafa;
   text-align: center;
   letter-spacing: 0.02em;
+}
+
+.typing-bubble {
+  position: relative;
+}
+
+.typing-bubble .cursor {
+  animation: blink 0.8s infinite;
+  color: #007bff;
+  font-weight: bold;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
 }
 
 /* Input Bar */

@@ -1,6 +1,7 @@
 package com.miaomiao.assistant.websocket.message;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.miaomiao.assistant.websocket.dto.LLMTokenMessage;
 import com.miaomiao.assistant.websocket.dto.SentenceMessage;
 import com.miaomiao.assistant.websocket.dto.STTMessage;
 import com.miaomiao.assistant.websocket.dto.TTSMessage;
@@ -50,6 +51,24 @@ public class WebSocketMessageSender {
     }
 
     /**
+     * 发送LLM流式Token消息（用于前端打字效果）
+     *
+     * @param state       会话状态
+     * @param token       当前token
+     * @param accumulated 累积文本
+     * @param finished    是否完成
+     */
+    public void sendLLMToken(SessionState state, String token, String accumulated, boolean finished) throws IOException {
+        LLMTokenMessage message = new LLMTokenMessage();
+        message.setType("llm_token");
+        message.setToken(token);
+        message.setAccumulated(accumulated);
+        message.setFinished(finished);
+        message.setTimestamp(System.currentTimeMillis());
+        sendMessage(state, message);
+    }
+
+    /**
      * 发送STT结果消息
      */
     public void sendSTTResult(SessionState state, String text, boolean isFinal) throws IOException {
@@ -76,6 +95,10 @@ public class WebSocketMessageSender {
 
     /**
      * 发送TTS音频消息
+     *
+     * @param state    会话状态
+     * @param opusData Opus音频数据
+     * @param finished 是否是本段TTS的最后一帧
      */
     public void sendTTSAudio(SessionState state, byte[] opusData, boolean finished) throws IOException {
         TTSMessage message = new TTSMessage();

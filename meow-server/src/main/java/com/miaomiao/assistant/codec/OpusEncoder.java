@@ -89,17 +89,10 @@ public class OpusEncoder {
                 offset += frameSizeBytes;
             }
 
-            // 处理剩余不足一帧的数据（用零填充）
+            // 丢弃剩余不足一帧的数据（最多20ms）
             int remaining = pcmData.length - offset;
             if (remaining > 0) {
-                byte[] frameData = new byte[frameSizeBytes];
-                System.arraycopy(pcmData, offset, frameData, 0, remaining);
-                // 剩余部分已经是0（静音）
-
-                byte[] encoded = opusCodec.encodeFrame(frameData);
-                outputStream.write(encoded.length & 0xFF);
-                outputStream.write((encoded.length >> 8) & 0xFF);
-                outputStream.write(encoded);
+                log.debug("丢弃最后{}字节不完整帧数据（需要{}字节才能构成完整帧）", remaining, frameSizeBytes);
             }
 
             byte[] result = outputStream.toByteArray();

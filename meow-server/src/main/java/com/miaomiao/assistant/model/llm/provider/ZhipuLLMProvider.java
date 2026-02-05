@@ -88,10 +88,23 @@ public class ZhipuLLMProvider extends BaseLLMProvider {
     }
 
     private AppLLMResponse convertToResponse(ModelData modelData) {
-        String delta = modelData.getDelta();
+        // 从 choices[0].delta.content 获取增量内容，与 ZhipuTTSProvider 保持一致
+        String delta = extractDeltaContent(modelData);
         boolean isFinished = modelData.getChoices() != null
                 && !modelData.getChoices().isEmpty()
                 && "stop".equals(modelData.getChoices().get(0).getFinishReason());
         return new AppLLMResponse(delta != null ? delta : "", isFinished);
+    }
+
+    private String extractDeltaContent(ModelData modelData) {
+        // 首先尝试从 choices[0].delta.content 获取
+        if (modelData.getChoices() != null && !modelData.getChoices().isEmpty()) {
+            var choice = modelData.getChoices().get(0);
+            if (choice.getDelta() != null && choice.getDelta().getContent() != null) {
+                return choice.getDelta().getContent().toString();
+            }
+        }
+        // 回退到 modelData.getDelta()
+        return modelData.getDelta();
     }
 }
