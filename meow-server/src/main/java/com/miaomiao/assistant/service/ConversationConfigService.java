@@ -28,6 +28,8 @@ public class ConversationConfigService {
                 .ttsSpeed(1.1F)
                 .ttsVolume(1.0F)
                 .ttsFormat("pcm")
+                .maxTokens(500)
+                .characterId("default")
                 .build();
     }
 

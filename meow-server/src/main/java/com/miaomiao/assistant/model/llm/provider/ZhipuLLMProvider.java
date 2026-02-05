@@ -82,7 +82,7 @@ public class ZhipuLLMProvider extends BaseLLMProvider {
                 .model(options.getModel())
                 .messages(sdkMessages)
                 .temperature(options.getTemperature() != null ? options.getTemperature().floatValue() : 0.7f)
-                .maxTokens(options.getMaxTokens() != null ? options.getMaxTokens() : 2000)
+                .maxTokens(options.getMaxTokens() != null ? options.getMaxTokens() : 1000)
                 .stream(stream)
                 .build();
     }

@@ -4,6 +4,7 @@ import com.miaomiao.assistant.model.llm.AppChatMessage;
 import com.miaomiao.assistant.model.llm.AppLLMResponse;
 import com.miaomiao.assistant.model.llm.LLMManager;
 import com.miaomiao.assistant.model.llm.LLMOptions;
+import com.miaomiao.assistant.service.SystemPromptService;
 import com.miaomiao.assistant.websocket.ConversationConfig;
 import com.miaomiao.assistant.websocket.message.WebSocketMessageSender;
 import com.miaomiao.assistant.websocket.session.SessionState;
@@ -33,6 +34,7 @@ public class LLMService {
 
     private final LLMManager llmManager;
     private final WebSocketMessageSender messageSender;
+    private final SystemPromptService systemPromptService;
 
     /**
      * 处理LLM流式对话
@@ -45,9 +47,18 @@ public class LLMService {
     public Flux<String> processLLMStream(SessionState state, String text, ConversationConfig config) {
         // 构建LLM选项
         LLMOptions llmOptions = LLMOptions.of(config.getLlmModel());
+        llmOptions.setMaxTokens(config.getMaxTokens());
 
-        // 构建对话历史
-        List<AppChatMessage> messages = new ArrayList<>(state.getConversationHistory());
+        // 获取系统提示词
+        String systemPrompt = systemPromptService.getSystemPrompt(
+                config.getCharacterId(),
+                config.getMaxTokens()
+        );
+
+        // 构建对话历史（系统提示词 + 历史 + 当前输入）
+        List<AppChatMessage> messages = new ArrayList<>();
+        messages.add(new AppChatMessage("system", systemPrompt));
+        messages.addAll(state.getConversationHistory());
         messages.add(new AppChatMessage("user", text));
 
         // 设置token sink用于TTS pipeline

@@ -70,6 +70,30 @@ public class MarkdownTextFilter {
     // 多个连续空格
     private static final Pattern MULTIPLE_SPACES_PATTERN = Pattern.compile(" {2,}");
 
+    // 表情符号和 Emoji
+    // 匹配大部分常见表情符号，使用代理对范围匹配
+    private static final Pattern EMOJI_PATTERN = Pattern.compile(
+            "[\\x{1F600}-\\x{1F64F}" +  // 表情符号
+            "\\x{1F300}-\\x{1F5FF}" +    // 符号和象形文字
+            "\\x{1F680}-\\x{1F6FF}" +    // 交通和地图符号
+            "\\x{1F700}-\\x{1F77F}" +    // 炼金术符号
+            "\\x{1F780}-\\x{1F7FF}" +    // 几何符号
+            "\\x{1F800}-\\x{1F8FF}" +    // 补充符号
+            "\\x{1F900}-\\x{1F9FF}" +    // 补充符号和象形文字
+            "\\x{1FA00}-\\x{1FA6F}" +    // 棋类符号
+            "\\x{1FA70}-\\x{1FAFF}" +    // 符号和象形文字扩展-A
+            "\\x{2600}-\\x{26FF}" +      // 杂项符号
+            "\\x{2700}-\\x{27BF}" +      // 装订符号
+            "\\x{FE0F}" +                // 变化选择器
+            "\\x{1F1E6}-\\x{1F1FF}" +    // 区域指示符号
+            "\\x{1F3FB}-\\x{1F3FF}" +    // 表情符号类型
+            "\\x{231A}-\\x{23FF}" +      // 杂项技术和符号
+            "\\x{2B50}-\\x{2B55}" +      // 星星和符号
+            "\\x{203C}-\\x{3299}" +      // 其他符号
+            "]+",
+            Pattern.UNICODE_CHARACTER_CLASS
+    );
+
     private MarkdownTextFilter() {
     }
 
@@ -134,7 +158,10 @@ public class MarkdownTextFilter {
         // 11. 移除水平线
         result = HORIZONTAL_RULE_PATTERN.matcher(result).replaceAll("");
 
-        // 12. 清理多余空白
+        // 12. 移除表情符号和 Emoji
+        result = EMOJI_PATTERN.matcher(result).replaceAll("");
+
+        // 13. 清理多余空白
         result = MULTIPLE_NEWLINES_PATTERN.matcher(result).replaceAll("\n\n");
         result = MULTIPLE_SPACES_PATTERN.matcher(result).replaceAll(" ");
 

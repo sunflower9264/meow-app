@@ -66,6 +66,18 @@ public class ConversationConfig {
     @Builder.Default
     private String ttsFormat = "pcm";
 
+    /**
+     * LLM 最大输出 token 数
+     */
+    @Builder.Default
+    private Integer maxTokens = 500;
+
+    /**
+     * 角色卡 ID
+     */
+    @Builder.Default
+    private String characterId = "default";
+
     public String getASRModelKey(){
         return asrProvider + ":" + asrModel;
     }
