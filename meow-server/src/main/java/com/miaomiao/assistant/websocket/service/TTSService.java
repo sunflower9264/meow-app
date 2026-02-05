@@ -1,6 +1,6 @@
 package com.miaomiao.assistant.websocket.service;
 
-import com.miaomiao.assistant.codec.AudioConverter;
+import com.miaomiao.assistant.codec.OpusEncoder;
 import com.miaomiao.assistant.model.tts.TTSManager;
 import com.miaomiao.assistant.service.ConversationConfigService;
 import com.miaomiao.assistant.websocket.ConversationConfig;
@@ -34,7 +34,7 @@ import reactor.core.scheduler.Schedulers;
 public class TTSService {
 
     private final TTSManager ttsManager;
-    private final AudioConverter audioConverter;
+    private final OpusEncoder opusEncoder;
     private final WebSocketMessageSender messageSender;
     private final ConversationConfigService configService;
 
@@ -62,7 +62,7 @@ public class TTSService {
     public void processTTSStream(SessionState state, Flux<String> textStream, ConversationConfig config) {
         ConcurrentTTSFrameProcessor processor = new ConcurrentTTSFrameProcessor(
                 ttsManager,
-                audioConverter,
+                opusEncoder,
                 messageSender,
                 configService,
                 state,

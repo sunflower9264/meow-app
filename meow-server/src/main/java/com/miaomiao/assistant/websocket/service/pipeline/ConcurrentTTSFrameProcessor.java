@@ -1,6 +1,6 @@
 package com.miaomiao.assistant.websocket.service.pipeline;
 
-import com.miaomiao.assistant.codec.AudioConverter;
+import com.miaomiao.assistant.codec.OpusEncoder;
 import com.miaomiao.assistant.model.tts.TTSManager;
 import com.miaomiao.assistant.model.tts.TTSOptions;
 import com.miaomiao.assistant.service.ConversationConfigService;
@@ -14,18 +14,6 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * 并发 TTS Frame 处理器
- * <p>
- * 当 LLM 返回较快时，可以并发调用 TTS API 提高效率，同时保证播放顺序。
- * <p>
- * 与同步版本 {@link TTSFrameProcessor} 的区别：
- * 1. 使用 {@link ConcurrentTTSProcessor} 并发执行 TTS 调用
- * 2. 通过有序队列保证音频按句子顺序播放
- * 3. 更低的首句延迟和更高的吞吐量
- * <p>
- * 适用场景：
- * - LLM 响应速度快
- * - 长文本对话
- * - 需要低延迟响应
  *
  * @author Pipecat移植优化
  */
@@ -47,7 +35,7 @@ public class ConcurrentTTSFrameProcessor implements FrameProcessor {
      * 构造函数
      *
      * @param ttsManager          TTS 管理器
-     * @param audioConverter      音频转换器
+     * @param opusEncoder         音频转换器
      * @param messageSender       WebSocket 消息发送器
      * @param configService       配置服务
      * @param sessionState        会话状态
@@ -56,7 +44,7 @@ public class ConcurrentTTSFrameProcessor implements FrameProcessor {
      */
     public ConcurrentTTSFrameProcessor(
             TTSManager ttsManager,
-            AudioConverter audioConverter,
+            OpusEncoder opusEncoder,
             WebSocketMessageSender messageSender,
             ConversationConfigService configService,
             SessionState sessionState,
@@ -74,7 +62,7 @@ public class ConcurrentTTSFrameProcessor implements FrameProcessor {
         // 创建并发 TTS 处理器
         this.concurrentProcessor = new ConcurrentTTSProcessor(
                 ttsManager,
-                audioConverter,
+                opusEncoder,
                 (opusFrame, isLast) -> {
                     try {
                         // 记录 TTS 首次响应时间（性能指标）
@@ -89,20 +77,6 @@ public class ConcurrentTTSFrameProcessor implements FrameProcessor {
                 // 音频保存回调（性能指标 - 同时保存 PCM 和 OPUS 文件）
                 (pcmData, opusData) -> sessionState.getPerformanceMetrics().saveAudioPair(pcmData, opusData)
         );
-    }
-
-    /**
-     * 构造函数（使用默认并发数 3）
-     */
-    public ConcurrentTTSFrameProcessor(
-            TTSManager ttsManager,
-            AudioConverter audioConverter,
-            WebSocketMessageSender messageSender,
-            ConversationConfigService configService,
-            SessionState sessionState,
-            TextAggregator.AggregationStrategy aggregationStrategy) {
-        this(ttsManager, audioConverter, messageSender, configService, sessionState,
-                aggregationStrategy, 3);
     }
 
     @Override

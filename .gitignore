@@ -2,3 +2,6 @@
 backapack/
 logs/
 pipecat-main/
+tts_output
+*.opus
+*.pcm

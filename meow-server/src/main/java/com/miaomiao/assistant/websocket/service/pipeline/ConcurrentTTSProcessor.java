@@ -1,6 +1,6 @@
 package com.miaomiao.assistant.websocket.service.pipeline;
 
-import com.miaomiao.assistant.codec.AudioConverter;
+import com.miaomiao.assistant.codec.OpusEncoder;
 import com.miaomiao.assistant.model.tts.TTSAudio;
 import com.miaomiao.assistant.model.tts.TTSManager;
 import com.miaomiao.assistant.model.tts.TTSOptions;
@@ -77,7 +77,7 @@ public class ConcurrentTTSProcessor implements AutoCloseable {
 
     // 依赖组件
     private final TTSManager ttsManager;
-    private final AudioConverter audioConverter;
+    private final OpusEncoder opusEncoder;
 
     // 线程池和队列
     private final ExecutorService ttsExecutor;
@@ -102,42 +102,24 @@ public class ConcurrentTTSProcessor implements AutoCloseable {
     private final int queueCapacity;
 
     /**
-     * 构造函数
+     * 构造函数（带音频保存回调）
      *
      * @param ttsManager     TTS 管理器
-     * @param audioConverter 音频转换器
+     * @param opusEncoder    音频转换器
      * @param audioSender    音频发送回调
      * @param errorHandler   错误处理回调
      * @param maxConcurrency 最大并发数（建议 2-4）
+     * @param audioSaver     音频保存回调 (pcmData, opusData)
      */
     public ConcurrentTTSProcessor(
             TTSManager ttsManager,
-            AudioConverter audioConverter,
-            BiConsumer<byte[], Boolean> audioSender,
-            Consumer<String> errorHandler,
-            int maxConcurrency) {
-        this(ttsManager, audioConverter, audioSender, errorHandler, maxConcurrency, null);
-    }
-
-    /**
-     * 构造函数（带音频保存回调）
-     *
-     * @param ttsManager           TTS 管理器
-     * @param audioConverter       音频转换器
-     * @param audioSender          音频发送回调
-     * @param errorHandler         错误处理回调
-     * @param maxConcurrency       最大并发数（建议 2-4）
-     * @param audioSaver           音频保存回调 (pcmData, opusData)
-     */
-    public ConcurrentTTSProcessor(
-            TTSManager ttsManager,
-            AudioConverter audioConverter,
+            OpusEncoder opusEncoder,
             BiConsumer<byte[], Boolean> audioSender,
             Consumer<String> errorHandler,
             int maxConcurrency,
             BiConsumer<byte[], byte[]> audioSaver) {
         this.ttsManager = ttsManager;
-        this.audioConverter = audioConverter;
+        this.opusEncoder = opusEncoder;
         this.audioSender = audioSender;
         this.errorHandler = errorHandler;
         this.audioSaver = audioSaver;
@@ -220,7 +202,7 @@ public class ConcurrentTTSProcessor implements AutoCloseable {
                     result = TTSResult.failure(task.getSequence(), task.getText(), "PCM 数据为空");
                 } else {
                     // 转换为 OPUS
-                    byte[] opusData = audioConverter.convertPcmToOpus(pcmData);
+                    byte[] opusData = opusEncoder.encodePcmToOpus(pcmData);
                     result = TTSResult.success(task.getSequence(), task.getText(), pcmData, opusData);
                 }
             }
