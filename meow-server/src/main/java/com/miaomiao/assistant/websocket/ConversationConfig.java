@@ -49,6 +49,16 @@ public class ConversationConfig {
      * TTS 音色
      */
     private String ttsVoice;
+    /**
+     * TTS 音量
+     */
+    private Float ttsVolume;
+
+
+    /**
+     * TTS 语速
+     */
+    private Float ttsSpeed;
 
     /**
      * TTS 输出格式

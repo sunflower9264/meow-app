@@ -1,7 +1,6 @@
 package com.miaomiao.assistant.model.llm;
 
 import com.miaomiao.assistant.model.BaseModelProvider;
-import lombok.Getter;
 import reactor.core.publisher.Flux;
 
 import java.util.List;

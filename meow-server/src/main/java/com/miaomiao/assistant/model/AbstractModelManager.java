@@ -40,14 +40,7 @@ public abstract class AbstractModelManager {
             }
 
             // 根据类型获取对应的模型列表
-            Set<String> models = switch (modelType()) {
-                case ASR ->
-                    providerConfig.getAsrModels();
-                case LLM ->
-                    providerConfig.getLlmModels();
-                case TTS ->
-                    providerConfig.getTtsModels();
-            };
+            Set<String> models = getModels(providerConfig);
 
             if (models == null || models.isEmpty()) {
                 log.debug("Provider {} 没有配置{}模型", name, modelType());
@@ -55,7 +48,7 @@ public abstract class AbstractModelManager {
             }
 
             try {
-                BaseModelProvider provider = createProvider(name, providerConfig);
+                BaseModelProvider provider = createProvider(name);
                 if (provider == null) {
                     continue;
                 }
@@ -78,10 +71,17 @@ public abstract class AbstractModelManager {
      */
     protected abstract ModelType modelType();
 
-    protected abstract BaseModelProvider createProvider(String name, AIServiceConfig.ProviderConfig providerConfig);
+    protected abstract BaseModelProvider createProvider(String name);
 
     public BaseModelProvider getProvider(String providerAndModelKey) {
         return modelProviderMap.get(providerAndModelKey);
     }
 
+    private Set<String> getModels(AIServiceConfig.ProviderConfig providerConfig) {
+        return switch (modelType()) {
+            case ASR -> providerConfig.getAsrModels();
+            case LLM -> providerConfig.getLlmModels();
+            case TTS -> providerConfig.getTtsModels();
+        };
+    }
 }

@@ -1,10 +1,9 @@
 package com.miaomiao.assistant.model.tts;
 
+import ai.z.openapi.ZhipuAiClient;
 import com.miaomiao.assistant.config.AIServiceConfig;
 import com.miaomiao.assistant.model.AbstractModelManager;
 import com.miaomiao.assistant.model.tts.provider.ZhipuTTSProvider;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 
@@ -14,10 +13,11 @@ import reactor.core.publisher.Flux;
 @Component
 public class TTSManager extends AbstractModelManager {
 
-    private static final Logger log = LoggerFactory.getLogger(TTSManager.class);
+    private final ZhipuAiClient zhipuAiClient;
 
-    public TTSManager(AIServiceConfig config) {
+    public TTSManager(AIServiceConfig config, ZhipuAiClient zhipuAiClient) {
         super(config);
+        this.zhipuAiClient = zhipuAiClient;
     }
 
     @Override
@@ -26,11 +26,10 @@ public class TTSManager extends AbstractModelManager {
     }
 
     @Override
-    protected BaseTTSProvider createProvider(String name, AIServiceConfig.ProviderConfig providerConfig) {
-        if (name.contains("zhipu")) {
-            return new ZhipuTTSProvider(name, providerConfig);
+    protected BaseTTSProvider createProvider(String name) {
+        if (name.contains("zhipu") && zhipuAiClient != null) {
+            return new ZhipuTTSProvider(name, zhipuAiClient);
         }
-        log.debug("Provider {} 不支持TTS服务", name);
         return null;
     }
 

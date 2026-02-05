@@ -1,10 +1,9 @@
 package com.miaomiao.assistant.model.asr;
 
+import ai.z.openapi.ZhipuAiClient;
 import com.miaomiao.assistant.config.AIServiceConfig;
 import com.miaomiao.assistant.model.AbstractModelManager;
-import com.miaomiao.assistant.model.asr.provider.ZhipuASRModelProvider;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.miaomiao.assistant.model.asr.provider.ZhipuASRProvider;
 import org.springframework.stereotype.Component;
 
 /**
@@ -13,10 +12,11 @@ import org.springframework.stereotype.Component;
 @Component
 public class ASRManager extends AbstractModelManager {
 
-    private static final Logger log = LoggerFactory.getLogger(ASRManager.class);
+    private final ZhipuAiClient zhipuAiClient;
 
-    public ASRManager(AIServiceConfig config) {
+    public ASRManager(AIServiceConfig config, ZhipuAiClient zhipuAiClient) {
         super(config);
+        this.zhipuAiClient = zhipuAiClient;
     }
 
     @Override
@@ -25,11 +25,10 @@ public class ASRManager extends AbstractModelManager {
     }
 
     @Override
-    protected BaseASRModelProvider createProvider(String name, AIServiceConfig.ProviderConfig providerConfig) {
-        if (name.contains("zhipu")) {
-            return new ZhipuASRModelProvider(name, providerConfig);
+    protected BaseASRModelProvider createProvider(String name) {
+        if (name.contains("zhipu") && zhipuAiClient != null) {
+            return new ZhipuASRProvider(name, zhipuAiClient);
         }
-        log.debug("Provider {} 不支持ASR服务", name);
         return null;
     }
 

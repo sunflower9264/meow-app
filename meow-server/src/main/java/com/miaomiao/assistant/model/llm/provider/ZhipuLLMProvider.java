@@ -2,7 +2,6 @@ package com.miaomiao.assistant.model.llm.provider;
 
 import ai.z.openapi.ZhipuAiClient;
 import ai.z.openapi.service.model.*;
-import com.miaomiao.assistant.config.AIServiceConfig;
 import com.miaomiao.assistant.model.llm.AppChatMessage;
 import com.miaomiao.assistant.model.llm.AppLLMResponse;
 import com.miaomiao.assistant.model.llm.BaseLLMProvider;
@@ -18,19 +17,14 @@ import java.util.stream.Collectors;
  * 智谱AI SDK Provider（通用端点） 使用: https://open.bigmodel.cn/api/paas/v4/
  */
 @Slf4j
-public class ZhipuSDKProvider extends BaseLLMProvider {
+public class ZhipuLLMProvider extends BaseLLMProvider {
 
     private final ZhipuAiClient client;
 
-    public ZhipuSDKProvider(String providerName, AIServiceConfig.ProviderConfig providerConfig) {
-        super.providerName = providerName;
-        super.apiKey = providerConfig.getApiKey();
-        ZhipuAiClient.Builder builder = ZhipuAiClient.builder().apiKey(providerConfig.getApiKey());
-        if (providerConfig.getEnableTokenCache()) {
-            builder.enableTokenCache().tokenExpire(providerConfig.getTokenExpire());
-        }
-        this.client = builder.build();
-        log.info("初始化智谱SDK Provider: name={}", providerName);
+    public ZhipuLLMProvider(String providerName, ZhipuAiClient client) {
+        this.providerName = providerName;
+        this.client = client;
+        log.info("初始化智谱LLM Provider: name={}", providerName);
     }
 
     @Override

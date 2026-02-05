@@ -4,7 +4,6 @@ import ai.z.openapi.ZhipuAiClient;
 import ai.z.openapi.service.audio.AudioSpeechRequest;
 import ai.z.openapi.service.audio.AudioSpeechStreamingResponse;
 import ai.z.openapi.service.model.ModelData;
-import com.miaomiao.assistant.config.AIServiceConfig;
 import com.miaomiao.assistant.model.tts.BaseTTSProvider;
 import com.miaomiao.assistant.model.tts.TTSAudio;
 import com.miaomiao.assistant.model.tts.TTSOptions;
@@ -22,17 +21,10 @@ public class ZhipuTTSProvider extends BaseTTSProvider {
 
     private final ZhipuAiClient client;
 
-    public ZhipuTTSProvider(String providerName, AIServiceConfig.ProviderConfig providerConfig) {
-        super.providerName = providerName;
-        super.apiKey = providerConfig.getApiKey();
-        super.baseUrl = providerConfig.getBaseUrl();
-        super.enableTokenCache = providerConfig.getEnableTokenCache();
-        ZhipuAiClient.Builder builder = ZhipuAiClient.builder().apiKey(providerConfig.getApiKey());
-        if (providerConfig.getEnableTokenCache()) {
-            super.tokenExpire = providerConfig.getTokenExpire();
-            builder.enableTokenCache().tokenExpire(super.tokenExpire);
-        }
-        this.client = builder.build();
+    public ZhipuTTSProvider(String providerName, ZhipuAiClient client) {
+        this.providerName = providerName;
+        this.client = client;
+        log.info("初始化智谱TTS Provider: name={}", providerName);
     }
 
     @Override

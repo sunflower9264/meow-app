@@ -8,7 +8,7 @@
     <version>1.0.0</version>
     <packaging>jar</packaging>
 
-    <name>collect</name>
+    <name>assistant</name>
     <description>喵喵助手服务端</description>
 
     <parent>

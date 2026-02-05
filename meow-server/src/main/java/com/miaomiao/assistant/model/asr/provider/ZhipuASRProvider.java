@@ -3,7 +3,6 @@ package com.miaomiao.assistant.model.asr.provider;
 import ai.z.openapi.ZhipuAiClient;
 import ai.z.openapi.service.audio.AudioTranscriptionRequest;
 import ai.z.openapi.service.audio.AudioTranscriptionResponse;
-import com.miaomiao.assistant.config.AIServiceConfig;
 import com.miaomiao.assistant.model.asr.ASROptions;
 import com.miaomiao.assistant.model.asr.ASRResult;
 import com.miaomiao.assistant.model.asr.BaseASRModelProvider;
@@ -19,21 +18,14 @@ import java.nio.file.Path;
  * 智谱AI ASR提供商
  */
 @Slf4j
-public class ZhipuASRModelProvider extends BaseASRModelProvider {
+public class ZhipuASRProvider extends BaseASRModelProvider {
 
     private final ZhipuAiClient client;
 
-    public ZhipuASRModelProvider(String providerName, AIServiceConfig.ProviderConfig providerConfig) {
-        super.providerName = providerName;
-        super.apiKey = providerConfig.getApiKey();
-        super.baseUrl = providerConfig.getBaseUrl();
-        super.enableTokenCache = providerConfig.getEnableTokenCache();
-        ZhipuAiClient.Builder builder = ZhipuAiClient.builder().apiKey(providerConfig.getApiKey());
-        if (providerConfig.getEnableTokenCache()) {
-            super.tokenExpire = providerConfig.getTokenExpire();
-            builder.enableTokenCache().tokenExpire(super.tokenExpire);
-        }
-        this.client = builder.build();
+    public ZhipuASRProvider(String providerName, ZhipuAiClient client) {
+        this.providerName = providerName;
+        this.client = client;
+        log.info("初始化智谱ASR Provider: name={}", providerName);
     }
 
     @Override

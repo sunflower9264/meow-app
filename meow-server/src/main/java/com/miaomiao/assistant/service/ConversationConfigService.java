@@ -25,6 +25,8 @@ public class ConversationConfigService {
                 .ttsProvider("zhipu")
                 .ttsModel("glm-tts")
                 .ttsVoice("female")
+                .ttsSpeed(1.2F)
+                .ttsVolume(1.0F)
                 .ttsFormat("pcm")
                 .build();
     }

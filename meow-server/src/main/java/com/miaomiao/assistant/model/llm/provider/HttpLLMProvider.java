@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.miaomiao.assistant.config.AIServiceConfig;
 import com.miaomiao.assistant.model.llm.AppChatMessage;
 import com.miaomiao.assistant.model.llm.AppLLMResponse;
 import com.miaomiao.assistant.model.llm.BaseLLMProvider;
@@ -25,24 +24,26 @@ import java.util.concurrent.TimeUnit;
  * 通用HTTP API Provider 支持OpenAI格式的API（智谱Coding端点等）
  */
 @Slf4j
-public class HttpApiProvider extends BaseLLMProvider {
+public class HttpLLMProvider extends BaseLLMProvider {
 
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
 
     private final OkHttpClient client;
     private final ObjectMapper objectMapper;
+    private final String baseUrl;
+    private final String apiKey;
 
-    public HttpApiProvider(String providerName, AIServiceConfig.ProviderConfig providerConfig, String baseUrl) {
-        super.providerName = providerName;
-        super.apiKey = providerConfig.getApiKey();
-        super.baseUrl = baseUrl;
+    public HttpLLMProvider(String providerName, String apiKey, String baseUrl) {
+        this.providerName = providerName;
+        this.apiKey = apiKey;
+        this.baseUrl = baseUrl;
         this.client = new OkHttpClient.Builder()
                 .connectTimeout(30, TimeUnit.SECONDS)
                 .readTimeout(300, TimeUnit.SECONDS)
                 .writeTimeout(30, TimeUnit.SECONDS)
                 .build();
         this.objectMapper = new ObjectMapper();
-        log.info("初始化HTTP API Provider: name={}", providerName);
+        log.info("初始化HTTP API Provider: name={}, baseUrl={}", providerName, baseUrl);
     }
 
     @Override

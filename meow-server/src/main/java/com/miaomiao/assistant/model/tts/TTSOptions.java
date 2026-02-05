@@ -1,8 +1,10 @@
 package com.miaomiao.assistant.model.tts;
 
+import lombok.Builder;
 import lombok.Data;
 
 @Data
+@Builder
 public class TTSOptions {
     /**
      * 模型名称
@@ -17,28 +19,15 @@ public class TTSOptions {
     /**
      * 语速 (0.5-2.0)
      */
-    private Float speed = 1.0f;
+    private Float speed;
 
     /**
      * 音量 (0.0-1.0)
      */
-    private Float volume = 1.0f;
+    private Float volume;
 
     /**
      * 输出格式 (pcm, mp3, wav)
      */
-    private String format = "pcm";
-
-    public static TTSOptions of(String model, String voice) {
-        TTSOptions options = new TTSOptions();
-        options.setModel(model);
-        options.setVoice(voice);
-        return options;
-    }
-
-    public static TTSOptions of(String model, String voice, String format) {
-        TTSOptions options = of(model, voice);
-        options.setFormat(format);
-        return options;
-    }
+    private String format;
 }

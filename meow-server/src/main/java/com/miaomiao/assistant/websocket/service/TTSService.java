@@ -34,10 +34,13 @@ public class TTSService {
      */
     public void processTTSStream(SessionState state, Flux<String> textStream, ConversationConfig config) {
         // TTS选项
-        TTSOptions ttsOptions = TTSOptions.of(
-                config.getTtsModel(), config.getTtsVoice(), config.getTtsFormat()
-        );
-
+        TTSOptions ttsOptions = TTSOptions.builder()
+                        .model(config.getTtsModel())
+                        .voice(config.getTtsVoice())
+                        .speed(config.getTtsSpeed())
+                        .volume(config.getTtsVolume())
+                        .format(config.getTtsFormat())
+                        .build();
         // 调用TTS获取流式音频
         textStream
                 .takeWhile(sentence -> !state.isAborted()) // 检查中止状态
