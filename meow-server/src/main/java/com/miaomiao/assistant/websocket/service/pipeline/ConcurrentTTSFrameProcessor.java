@@ -86,8 +86,8 @@ public class ConcurrentTTSFrameProcessor implements FrameProcessor {
                 },
                 errorMsg -> log.warn("TTS 错误: {}", errorMsg),
                 maxConcurrency,
-                // 完整音频回调（性能指标 - 保存音频文件）
-                (opusData) -> sessionState.getPerformanceMetrics().saveTTSAudio(opusData)
+                // 音频保存回调（性能指标 - 同时保存 PCM 和 OPUS 文件）
+                (pcmData, opusData) -> sessionState.getPerformanceMetrics().saveAudioPair(pcmData, opusData)
         );
     }
 
@@ -219,10 +219,15 @@ public class ConcurrentTTSFrameProcessor implements FrameProcessor {
      * 处理结束 Frame
      */
     private void processEndFrame() throws FrameProcessingException {
+        log.debug("开始处理 EndFrame，聚合器缓冲区: {}", textAggregator.getBufferContent());
+
         // 处理剩余文本
         var remaining = textAggregator.complete();
         if (remaining != null) {
+            log.debug("处理剩余文本: {}", remaining.getText());
             submitTTSTask(remaining.getText(), remaining.getType());
+        } else {
+            log.debug("无剩余文本需要处理");
         }
 
         // 标记任务提交完成

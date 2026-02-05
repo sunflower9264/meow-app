@@ -78,7 +78,7 @@ public class ZhipuTTSProvider extends BaseTTSProvider {
                         return new TTSAudio(audioData, format, isFinished);
                     })
                     .filter(audio -> audio.getAudioData().length > 0)
-                    .doOnComplete(() -> log.debug("TTS流式响应完成"))
+                    .doOnComplete(() -> {})
                     .doOnError(error -> log.error("TTS流式响应错误", error));
 
         } catch (Exception e) {

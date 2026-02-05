@@ -61,16 +61,17 @@ public class ConcurrentTTSProcessor implements AutoCloseable {
     public static class TTSResult {
         private final int sequence;           // 序号（对应任务序号）
         private final String text;            // 原始文本
+        private final byte[] pcmData;         // 原始 PCM 音频数据
         private final byte[] opusData;        // OPUS 编码后的音频数据
         private final boolean success;        // 是否成功
         private final String errorMessage;    // 错误信息（如果失败）
 
-        public static TTSResult success(int sequence, String text, byte[] opusData) {
-            return new TTSResult(sequence, text, opusData, true, null);
+        public static TTSResult success(int sequence, String text, byte[] pcmData, byte[] opusData) {
+            return new TTSResult(sequence, text, pcmData, opusData, true, null);
         }
 
         public static TTSResult failure(int sequence, String text, String errorMessage) {
-            return new TTSResult(sequence, text, null, false, errorMessage);
+            return new TTSResult(sequence, text, null, null, false, errorMessage);
         }
     }
 
@@ -94,7 +95,7 @@ public class ConcurrentTTSProcessor implements AutoCloseable {
     // 回调
     private final BiConsumer<byte[], Boolean> audioSender;  // 音频发送回调 (opusData, isLast)
     private final Consumer<String> errorHandler;             // 错误处理回调
-    private final Consumer<byte[]> completeAudioSaver;       // 完整音频保存回调（性能指标用）
+    private final BiConsumer<byte[], byte[]> audioSaver;     // 音频保存回调 (pcmData, opusData)
 
     // 配置
     private final int maxConcurrency;
@@ -119,14 +120,14 @@ public class ConcurrentTTSProcessor implements AutoCloseable {
     }
 
     /**
-     * 构造函数（带完整音频保存回调）
+     * 构造函数（带音频保存回调）
      *
      * @param ttsManager           TTS 管理器
      * @param audioConverter       音频转换器
      * @param audioSender          音频发送回调
      * @param errorHandler         错误处理回调
      * @param maxConcurrency       最大并发数（建议 2-4）
-     * @param completeAudioSaver   完整音频保存回调（用于性能测试）
+     * @param audioSaver           音频保存回调 (pcmData, opusData)
      */
     public ConcurrentTTSProcessor(
             TTSManager ttsManager,
@@ -134,12 +135,12 @@ public class ConcurrentTTSProcessor implements AutoCloseable {
             BiConsumer<byte[], Boolean> audioSender,
             Consumer<String> errorHandler,
             int maxConcurrency,
-            Consumer<byte[]> completeAudioSaver) {
+            BiConsumer<byte[], byte[]> audioSaver) {
         this.ttsManager = ttsManager;
         this.audioConverter = audioConverter;
         this.audioSender = audioSender;
         this.errorHandler = errorHandler;
-        this.completeAudioSaver = completeAudioSaver;
+        this.audioSaver = audioSaver;
         this.maxConcurrency = Math.max(1, Math.min(maxConcurrency, 8)); // 限制 1-8
         this.queueCapacity = this.maxConcurrency * 2;
 
@@ -220,7 +221,7 @@ public class ConcurrentTTSProcessor implements AutoCloseable {
                 } else {
                     // 转换为 OPUS
                     byte[] opusData = audioConverter.convertPcmToOpus(pcmData);
-                    result = TTSResult.success(task.getSequence(), task.getText(), opusData);
+                    result = TTSResult.success(task.getSequence(), task.getText(), pcmData, opusData);
                 }
             }
         } catch (Exception e) {
@@ -238,7 +239,8 @@ public class ConcurrentTTSProcessor implements AutoCloseable {
     /**
      * 尝试按序分发结果到队列
      * <p>
-     * 只有当期望序号的结果就绪时才发送到队列，确保播放顺序
+     * 只有当期望序号的结果就绪时才发送到队列，确保播放顺序。
+     * 如果后面的任务先完成，会被缓存在 pendingResults 中等待。
      */
     private synchronized void tryDispatchResults() {
         while (true) {
@@ -246,7 +248,13 @@ public class ConcurrentTTSProcessor implements AutoCloseable {
             TTSResult result = pendingResults.remove(expected);
 
             if (result == null) {
-                break; // 期望的结果还没准备好
+                // 期望的结果还没准备好
+                int pendingCount = pendingResults.size();
+                if (pendingCount > 0) {
+                    log.debug("等待序号 {} 的 TTS 结果，当前有 {} 个提前完成的任务在等待",
+                            expected, pendingCount);
+                }
+                break;
             }
 
             try {
@@ -286,9 +294,9 @@ public class ConcurrentTTSProcessor implements AutoCloseable {
                     boolean isLast = completed.get() &&
                             result.getSequence() == sequenceCounter.get() - 1;
 
-                    // 保存完整音频（性能指标）
-                    if (completeAudioSaver != null) {
-                        completeAudioSaver.accept(result.getOpusData());
+                    // 保存音频（PCM 和 OPUS）
+                    if (audioSaver != null) {
+                        audioSaver.accept(result.getPcmData(), result.getOpusData());
                     }
 
                     // 发送音频
@@ -358,8 +366,6 @@ public class ConcurrentTTSProcessor implements AutoCloseable {
 
             offset += totalFrameSize;
         }
-
-        log.debug("OPUS 帧发送完成: frames={}/{}, bytes={}", frameCount, totalFrames, opusData.length);
     }
 
     /**

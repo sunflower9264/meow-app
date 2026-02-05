@@ -67,10 +67,10 @@ public class LLMService {
                             tokenSink.tryEmitComplete();
                         },
                         () -> {
+                            // LLM 流结束时，确保 tokenSink 完成
+                            // 这样 TTS 的 doOnComplete 才会被触发，处理缓冲区剩余内容
                             log.debug("LLM流完成");
-                            if (state.isAborted()) {
-                                tokenSink.tryEmitComplete();
-                            }
+                            tokenSink.tryEmitComplete();
                         }
                 );
 

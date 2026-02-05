@@ -153,10 +153,58 @@ public class PerformanceMetrics {
     }
 
     /**
+     * 同时保存 PCM 和 OPUS 音频到文件（异步）
+     * <p>
+     * 使用同一个序号保存两种格式的文件，确保文件对应关系正确。
+     *
+     * @param pcmData  PCM 音频数据
+     * @param opusData OPUS 音频数据
+     */
+    public void saveAudioPair(byte[] pcmData, byte[] opusData) {
+        if (!audioSaveEnabled) {
+            return;
+        }
+
+        int index = ttsAudioFileIndex.getAndIncrement();
+
+        // 保存 PCM
+        if (pcmData != null && pcmData.length > 0) {
+            String pcmFilename = String.format("tts_%03d.pcm", index);
+            String pcmFilePath = sessionOutputDir + File.separator + pcmFilename;
+            byte[] pcmCopy = pcmData.clone();
+
+            fileSaveExecutor.execute(() -> {
+                try (FileOutputStream fos = new FileOutputStream(pcmFilePath)) {
+                    fos.write(pcmCopy);
+                } catch (IOException e) {
+                    log.error("保存 PCM 音频失败: {}", pcmFilePath, e);
+                }
+            });
+        }
+
+        // 保存 OPUS
+        if (opusData != null && opusData.length > 0) {
+            String opusFilename = String.format("tts_%03d.opus", index);
+            String opusFilePath = sessionOutputDir + File.separator + opusFilename;
+            byte[] opusCopy = opusData.clone();
+
+            fileSaveExecutor.execute(() -> {
+                try (FileOutputStream fos = new FileOutputStream(opusFilePath)) {
+                    fos.write(opusCopy);
+                } catch (IOException e) {
+                    log.error("保存 OPUS 音频失败: {}", opusFilePath, e);
+                }
+            });
+        }
+    }
+
+    /**
      * 保存 TTS 音频到文件（异步）
      *
      * @param audioData OPUS 音频数据
+     * @deprecated 请使用 {@link #saveAudioPair(byte[], byte[])} 同时保存 PCM 和 OPUS
      */
+    @Deprecated
     public void saveTTSAudio(byte[] audioData) {
         if (!audioSaveEnabled || audioData == null || audioData.length == 0) {
             return;
@@ -182,7 +230,9 @@ public class PerformanceMetrics {
      * 保存 PCM 音频到文件（异步）
      *
      * @param pcmData PCM 音频数据
+     * @deprecated 请使用 {@link #saveAudioPair(byte[], byte[])} 同时保存 PCM 和 OPUS
      */
+    @Deprecated
     public void savePCMAudio(byte[] pcmData) {
         if (!audioSaveEnabled || pcmData == null || pcmData.length == 0) {
             return;
