@@ -2,7 +2,7 @@ import { OpusDecoder } from 'opus-decoder'
 
 /**
  * Opus 音频流播放器
- * 接收裸 Opus 帧数据，解码后通过 Web Audio API 播放
+ * 接收 Ogg Opus 格式数据，解码后通过 Web Audio API 播放
  */
 export class OpusStreamPlayer {
   constructor() {
@@ -10,15 +10,18 @@ export class OpusStreamPlayer {
     this.decoder = null
     this.isInitialized = false
     this.isPlaying = false
-    
+
     // 音频缓冲队列
     this.audioQueue = []
     this.currentSource = null
     this.nextStartTime = 0
-    
+
     // Opus 参数（与后端一致）
     this.sampleRate = 24000
     this.channels = 1
+
+    // 累积的 Ogg 数据缓冲区（用于处理分片传输）
+    this.oggBuffer = null
   }
 
   /**
@@ -32,15 +35,15 @@ export class OpusStreamPlayer {
       sampleRate: this.sampleRate
     })
 
-    // 初始化 Opus 解码器
+    // 初始化 Ogg Opus 解码器（会自动从 Ogg 头部读取参数）
     this.decoder = new OpusDecoder({
-      sampleRate: this.sampleRate,
-      channels: this.channels
+      onDecode: this.onDecodedFrame.bind(this),
+      onDecodeAll: this.onAllDecoded.bind(this)
     })
     await this.decoder.ready
 
     this.isInitialized = true
-    console.log('OpusStreamPlayer initialized')
+    console.log('OpusStreamPlayer initialized (Ogg Opus mode)')
   }
 
   /**
@@ -53,79 +56,45 @@ export class OpusStreamPlayer {
   }
 
   /**
-   * 解析裸 Opus 数据（带2字节长度头的多帧格式）
-   * @param {Uint8Array} data - 裸 Opus 数据
-   * @returns {Uint8Array[]} - Opus 帧数组
+   * 解码帧回调（每解码一帧触发）
+   * @param {Object} decoded - 解码结果 {channelData, samplesDecoded, sampleRate}
    */
-  parseOpusFrames(data) {
-    const frames = []
-    let offset = 0
-
-    while (offset + 2 <= data.length) {
-      // 读取帧长度（2字节小端）
-      const frameLength = data[offset] | (data[offset + 1] << 8)
-      offset += 2
-
-      if (offset + frameLength > data.length) {
-        console.warn('Incomplete Opus frame data')
-        break
-      }
-
-      // 提取帧数据
-      const frameData = data.slice(offset, offset + frameLength)
-      frames.push(frameData)
-      offset += frameLength
+  onDecodedFrame(decoded) {
+    if (!decoded || !decoded.channelData || !decoded.channelData[0]) {
+      return
     }
 
-    return frames
+    const pcmData = decoded.channelData[0] // Float32Array
+    this.scheduleAudio(pcmData)
   }
 
   /**
-   * 接收并播放 Opus 数据
-   * @param {ArrayBuffer} opusData - Base64 解码后的 Opus 数据
+   * 全部解码完成回调
+   * @param {Object} decoded - 解码结果 {channelData, samplesDecoded, sampleRate}
    */
-  async feed(opusData) {
-    if (!this.isInitialized) {
-      await this.init()
-    }
-    await this.resume()
-
-    const data = new Uint8Array(opusData)
-    const frames = this.parseOpusFrames(data)
-
-    if (frames.length === 0) return
-
-    // 解码所有帧
-    const pcmChunks = []
-    for (const frame of frames) {
-      try {
-        const decoded = this.decoder.decodeFrame(frame)
-        if (decoded && decoded.channelData && decoded.channelData[0]) {
-          pcmChunks.push(decoded.channelData[0])
-        }
-      } catch (e) {
-        console.error('Opus decode error:', e)
-      }
+  onAllDecoded(decoded) {
+    if (!decoded || !decoded.channelData || !decoded.channelData[0]) {
+      return
     }
 
-    if (pcmChunks.length === 0) return
+    const pcmData = decoded.channelData[0] // Float32Array
+    this.scheduleAudio(pcmData)
+  }
 
-    // 合并 PCM 数据
-    const totalLength = pcmChunks.reduce((sum, chunk) => sum + chunk.length, 0)
-    const mergedPcm = new Float32Array(totalLength)
-    let writeOffset = 0
-    for (const chunk of pcmChunks) {
-      mergedPcm.set(chunk, writeOffset)
-      writeOffset += chunk.length
-    }
+  /**
+   * 调度音频播放
+   * @param {Float32Array} pcmData - PCM 数据
+   */
+  scheduleAudio(pcmData) {
+    if (pcmData.length === 0) return
 
     // 创建 AudioBuffer
     const audioBuffer = this.audioContext.createBuffer(
       this.channels,
-      mergedPcm.length,
+      pcmData.length,
       this.sampleRate
     )
-    audioBuffer.getChannelData(0).set(mergedPcm)
+    audioBuffer.getChannelData(0).set(pcmData)
 
     // 调度播放
     this.scheduleBuffer(audioBuffer)
@@ -142,7 +111,7 @@ export class OpusStreamPlayer {
     // 计算开始时间，确保无缝衔接
     const currentTime = this.audioContext.currentTime
     const startTime = Math.max(currentTime, this.nextStartTime)
-    
+
     source.start(startTime)
     this.nextStartTime = startTime + audioBuffer.duration
 
@@ -153,6 +122,73 @@ export class OpusStreamPlayer {
         this.isPlaying = false
       }
     }
+  }
+
+  /**
+   * 接收并播放 Ogg Opus 数据
+   * 注意：每次 feed 都应该是完整的 Ogg Opus 文件（包含头部）
+   *
+   * @param {ArrayBuffer} opusData - Base64 解码后的 Ogg Opus 数据
+   */
+  async feed(opusData) {
+    if (!this.isInitialized) {
+      await this.init()
+    }
+    await this.resume()
+
+    const data = new Uint8Array(opusData)
+
+    // 如果解码器已经使用过，需要重新创建
+    // 因为 opus-decoder 的 free() 后需要重新初始化
+    if (this.decoder) {
+      try {
+        this.decoder.free()
+      } catch (e) {
+        // 忽略错误
+      }
+    }
+
+    // 创建新的解码器实例
+    const pcmChunks = []
+
+    const tempDecoder = new OpusDecoder({
+      onDecode: (decoded) => {
+        if (decoded && decoded.channelData && decoded.channelData[0]) {
+          pcmChunks.push(decoded.channelData[0])
+        }
+      },
+      onDecodeAll: (decoded) => {
+        if (decoded && decoded.channelData && decoded.channelData[0]) {
+          pcmChunks.push(decoded.channelData[0])
+        }
+      }
+    })
+
+    await tempDecoder.ready
+
+    // 解码数据
+    try {
+      tempDecoder.decode(data)
+    } catch (e) {
+      console.error('Ogg Opus decode error:', e)
+      tempDecoder.free()
+      return
+    }
+
+    // 合并所有 PCM 块并播放
+    if (pcmChunks.length > 0) {
+      const totalLength = pcmChunks.reduce((sum, chunk) => sum + chunk.length, 0)
+      const mergedPcm = new Float32Array(totalLength)
+      let offset = 0
+      for (const chunk of pcmChunks) {
+        mergedPcm.set(chunk, offset)
+        offset += chunk.length
+      }
+      this.scheduleAudio(mergedPcm)
+    }
+
+    // 释放解码器
+    tempDecoder.free()
   }
 
   /**
@@ -170,6 +206,7 @@ export class OpusStreamPlayer {
     this.audioQueue = []
     this.nextStartTime = 0
     this.isPlaying = false
+    this.oggBuffer = null
   }
 
   /**
@@ -178,6 +215,7 @@ export class OpusStreamPlayer {
   reset() {
     this.stop()
     this.nextStartTime = 0
+    this.oggBuffer = null
   }
 
   /**
@@ -185,17 +223,17 @@ export class OpusStreamPlayer {
    */
   async destroy() {
     this.stop()
-    
+
     if (this.decoder) {
       this.decoder.free()
       this.decoder = null
     }
-    
+
     if (this.audioContext) {
       await this.audioContext.close()
       this.audioContext = null
     }
-    
+
     this.isInitialized = false
   }
 }

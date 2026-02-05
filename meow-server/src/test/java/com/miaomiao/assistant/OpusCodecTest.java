@@ -1,5 +1,6 @@
 package com.miaomiao.assistant;
 
+import com.miaomiao.assistant.codec.OggOpusEncoder;
 import net.labymod.opus.OpusCodec;
 
 import javax.sound.sampled.*;
@@ -27,6 +28,7 @@ public class OpusCodecTest {
         // 文件路径
         Path pcmPath = Paths.get("meow-server/src/test/resources/tts_001.pcm").toAbsolutePath();
         Path opusPath = Paths.get("meow-server/src/test/resources/tts_001.opus").toAbsolutePath();
+        Path oggOpusPath = Paths.get("meow-server/src/test/resources/tts_001.ogg.opus").toAbsolutePath();
         Path decodedPcmPath = Paths.get("meow-server/src/test/resources/tts_001_decoded.pcm").toAbsolutePath();
 
         // 1. 读取原始PCM文件
@@ -56,48 +58,61 @@ public class OpusCodecTest {
                 .build();
         System.out.println("Opus编解码器初始化成功");
 
-        // 3. PCM -> Opus 编码
-        System.out.println("\n开始PCM -> Opus编码...");
-        byte[] opusData = encodePcmToOpus(encoder, originalPcm);
+        // 3. PCM -> 裸 Opus 编码
+        System.out.println("\n========== 测试1: 裸 Opus 格式 ==========");
+        byte[] rawOpusData = encodePcmToOpus(encoder, originalPcm);
         try {
-            Files.write(opusPath, opusData);
+            Files.write(opusPath, rawOpusData);
         } catch (java.io.IOException e) {
             throw new RuntimeException("写入Opus文件失败: " + opusPath, e);
         }
-        System.out.println("Opus编码完成，大小: " + opusData.length + " 字节");
-        System.out.println("Opus文件已保存: " + opusPath);
-        System.out.println("压缩比: " + String.format("%.2f%%", (opusData.length * 100.0 / originalPcm.length)));
+        System.out.println("裸 Opus 编码完成，大小: " + rawOpusData.length + " 字节");
+        System.out.println("文件已保存: " + opusPath);
 
-        // 4. 播放原始PCM
+        // 4. PCM -> Ogg Opus 编码
+        System.out.println("\n========== 测试2: Ogg Opus 格式 ==========");
+        OggOpusEncoder oggEncoder = new OggOpusEncoder(SAMPLE_RATE, CHANNELS, FRAME_SIZE);
+        byte[] oggOpusData = oggEncoder.encodeToOgg(rawOpusData);
+        try {
+            Files.write(oggOpusPath, oggOpusData);
+        } catch (java.io.IOException e) {
+            throw new RuntimeException("写入Ogg Opus文件失败: " + oggOpusPath, e);
+        }
+        System.out.println("Ogg Opus 编码完成，大小: " + oggOpusData.length + " 字节");
+        System.out.println("文件已保存: " + oggOpusPath);
+        System.out.println("Ogg 开头: " + new String(oggOpusData, 0, 4) + " (应该是 'OggS')");
+        System.out.println("OpusHead 位置: " + findPattern(oggOpusData, "OpusHead"));
+
+        // 5. 播放原始PCM
         System.out.println("\n========== 播放原始PCM音频 ==========");
         playPcmAudio(originalPcm);
 
-        // 5. 播放Opus（先解码再播放）
-        System.out.println("\n========== 播放Opus音频（解码后播放） ==========");
-        byte[] opusDecodedPcm = decodeOpusToPcm(decoder, opusData);
-        playPcmAudio(opusDecodedPcm);
+        // 6. 播放裸Opus（先解码再播放）
+        System.out.println("\n========== 播放裸Opus音频（解码后播放） ==========");
+        byte[] rawOpusDecodedPcm = decodeOpusToPcm(decoder, rawOpusData);
+        playPcmAudio(rawOpusDecodedPcm);
 
-        // 6. 保存解码后的PCM文件（用于后续分析）
+        // 7. 保存解码后的PCM文件（用于后续分析）
         try {
-            Files.write(decodedPcmPath, opusDecodedPcm);
+            Files.write(decodedPcmPath, rawOpusDecodedPcm);
         } catch (java.io.IOException e) {
             throw new RuntimeException("写入解码PCM文件失败: " + decodedPcmPath, e);
         }
         System.out.println("解码后的PCM已保存: " + decodedPcmPath);
 
-        // 7. 对比原始和解码后的PCM
+        // 8. 对比原始和解码后的PCM
         System.out.println("\n对比分析:");
         System.out.println("原始PCM大小: " + originalPcm.length + " 字节");
-        System.out.println("解码PCM大小: " + opusDecodedPcm.length + " 字节");
-        System.out.println("差异: " + Math.abs(originalPcm.length - opusDecodedPcm.length) + " 字节");
+        System.out.println("解码PCM大小: " + rawOpusDecodedPcm.length + " 字节");
+        System.out.println("差异: " + Math.abs(originalPcm.length - rawOpusDecodedPcm.length) + " 字节");
 
         // 计算MSE（均方误差）
-        int minLen = Math.min(originalPcm.length, opusDecodedPcm.length);
+        int minLen = Math.min(originalPcm.length, rawOpusDecodedPcm.length);
         long sumSquaredError = 0;
         int maxDiff = 0;
         for (int i = 0; i < minLen; i += 2) { // 16位PCM，每次跳过2字节比较一个样本
             short original = (short) ((originalPcm[i + 1] << 8) | (originalPcm[i] & 0xFF));
-            short decoded = (short) ((opusDecodedPcm[i + 1] << 8) | (opusDecodedPcm[i] & 0xFF));
+            short decoded = (short) ((rawOpusDecodedPcm[i + 1] << 8) | (rawOpusDecodedPcm[i] & 0xFF));
             int diff = original - decoded;
             sumSquaredError += (long) diff * diff;
             maxDiff = Math.max(maxDiff, Math.abs(diff));
@@ -110,6 +125,27 @@ public class OpusCodecTest {
         encoder.destroy();
         decoder.destroy();
         System.out.println("\n测试完成！");
+        System.out.println("\n提示: 可以用支持 Ogg Opus 的播放器播放 " + oggOpusPath + " 来验证格式正确性");
+    }
+
+    /**
+     * 在字节数组中查找模式
+     */
+    private static int findPattern(byte[] data, String pattern) {
+        byte[] patternBytes = pattern.getBytes();
+        for (int i = 0; i <= data.length - patternBytes.length; i++) {
+            boolean found = true;
+            for (int j = 0; j < patternBytes.length; j++) {
+                if (data[i + j] != patternBytes[j]) {
+                    found = false;
+                    break;
+                }
+            }
+            if (found) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     /**

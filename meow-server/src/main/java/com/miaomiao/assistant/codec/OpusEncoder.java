@@ -9,7 +9,7 @@ import java.io.ByteArrayOutputStream;
 
 /**
  * Opus音频编码器
- * 使用opus-jni实现
+ * 使用opus-jni实现，支持输出 Ogg Opus 格式
  * 参考: https://github.com/LabyMod/opus-jni
  */
 @Slf4j
@@ -25,6 +25,7 @@ public class OpusEncoder {
     private static final int FRAME_SIZE = 480;
 
     private final OpusCodec opusCodec;
+    private final OggOpusEncoder oggEncoder;
 
     public OpusEncoder() {
         // 使用opus-jni的OpusCodec Builder
@@ -34,6 +35,7 @@ public class OpusEncoder {
                 .withBitrate(BITRATE)
                 .withFrameSize(FRAME_SIZE)
                 .build();
+        this.oggEncoder = new OggOpusEncoder(SAMPLE_RATE, CHANNELS, FRAME_SIZE);
         log.info("Opus编码器初始化成功: 采样率={}Hz, 声道数={}, 比特率={}bps, 帧大小={}样本",
                 SAMPLE_RATE, CHANNELS, BITRATE, FRAME_SIZE);
     }
@@ -83,6 +85,25 @@ public class OpusEncoder {
             return outputStream.toByteArray();
         } catch (Exception e) {
             log.error("PCM转Opus编码失败", e);
+            throw new RuntimeException("音频编码失败", e);
+        }
+    }
+
+    /**
+     * 将PCM数据编码为Ogg Opus格式
+     * 会自动进行分帧处理，输入数据长度可以是任意的
+     *
+     * @param pcmData 16位PCM数据(小端序)
+     * @return Ogg Opus格式数据
+     */
+    public byte[] encodePcmToOggOpus(byte[] pcmData) {
+        try {
+            // 先编码成裸 Opus 帧
+            byte[] rawOpusData = encodePcmToOpus(pcmData);
+            // 然后封装成 Ogg Opus
+            return oggEncoder.encodeToOgg(rawOpusData);
+        } catch (Exception e) {
+            log.error("PCM转Ogg Opus编码失败", e);
             throw new RuntimeException("音频编码失败", e);
         }
     }
