@@ -272,17 +272,13 @@ public class ConcurrentTTSProcessor implements AutoCloseable {
                 }
 
                 if (result.isSuccess()) {
-                    // 判断是否为最后一个结果
-                    boolean isLast = completed.get() &&
-                            result.getSequence() == sequenceCounter.get() - 1;
-
                     // 保存音频（PCM 和 OPUS）
                     if (audioSaver != null) {
                         audioSaver.accept(result.getPcmData(), result.getOpusData());
                     }
 
                     // 发送音频
-                    sendAudioWithTiming(result.getOpusData(), isLast);
+                    sendAudioWithTiming(result.getOpusData());
                 } else {
                     log.warn("TTS 失败，跳过: seq={}, error={}",
                             result.getSequence(), result.getErrorMessage());
@@ -305,7 +301,7 @@ public class ConcurrentTTSProcessor implements AutoCloseable {
     /**
      * 发送 OPUS 音频数据（带时机控制）
      */
-    private void sendAudioWithTiming(byte[] opusData, boolean isLastSentence) {
+    private void sendAudioWithTiming(byte[] opusData) {
         if (opusData == null || opusData.length == 0) {
             return;
         }
@@ -332,7 +328,8 @@ public class ConcurrentTTSProcessor implements AutoCloseable {
 
             // 发送帧
             frameCount++;
-            boolean isLastFrame = isLastSentence && (offset + totalFrameSize >= opusData.length);
+            // finished 表示“本段 TTS 的最后一帧”
+            boolean isLastFrame = (offset + totalFrameSize >= opusData.length);
             audioSender.accept(frame, isLastFrame);
 
             // 简单的时机控制：每帧 20ms，但不完全阻塞以保持响应性

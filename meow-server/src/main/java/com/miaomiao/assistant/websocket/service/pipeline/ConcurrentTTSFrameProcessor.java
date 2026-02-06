@@ -10,6 +10,7 @@ import com.miaomiao.assistant.websocket.session.SessionState;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -155,7 +156,7 @@ public class ConcurrentTTSFrameProcessor implements FrameProcessor {
      */
     private void submitTTSTask(String text, TextAggregator.AggregationType type) {
         // 通过预处理管道过滤和拆分文本
-        java.util.List<String> processedTexts = TextPreProcessorPipeline.getInstance().process(text);
+        List<String> processedTexts = TextPreProcessorPipeline.getInstance().process(text);
         if (processedTexts.isEmpty()) {
             return;
         }

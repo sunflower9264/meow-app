@@ -33,15 +33,26 @@ export class OpusStreamPlayer {
             sampleRate: this.sampleRate
         })
 
-        // 初始化 Opus 解码器
-        this.decoder = new OpusDecoder({
-            sampleRate: this.sampleRate,
-            channels: this.channels
-        })
-        await this.decoder.ready
+        await this.createDecoder()
 
         this.isInitialized = true
         console.log('OpusStreamPlayer initialized')
+    }
+
+    async createDecoder() {
+        const decoder = new OpusDecoder({
+            sampleRate: this.sampleRate,
+            channels: this.channels
+        })
+        await decoder.ready
+        this.decoder = decoder
+    }
+
+    async recreateDecoder() {
+        if (this.decoder) {
+            this.decoder.free()
+        }
+        await this.createDecoder()
     }
 
     /**
@@ -163,9 +174,7 @@ export class OpusStreamPlayer {
                 this.pendingOpusBytes = new Uint8Array(0)
             }
 
-            if (typeof this.decoder?.reset === 'function') {
-                this.decoder.reset()
-            }
+            await this.recreateDecoder()
         }
     }
 
@@ -210,10 +219,6 @@ export class OpusStreamPlayer {
         this.currentSource = null
         this.nextStartTime = 0
         this.pendingOpusBytes = new Uint8Array(0)
-
-        if (typeof this.decoder?.reset === 'function') {
-            this.decoder.reset()
-        }
     }
 
     /**
