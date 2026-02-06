@@ -17,7 +17,11 @@ export class OpusStreamPlayer {
         this.sampleRate = 24000
         this.channels = 1
 
-        this.pendingOpusBytes = new Uint8Array(0)
+        // WebSocket 按消息边界交付，服务端每条 tts 消息就是完整帧包（可包含1-N个长度头帧）
+        this.packetQueue = []
+        this.isQueueProcessing = false
+        this.maxFramesPerDecode = 6
+
         this.feedChain = Promise.resolve()
         this.streamVersion = 0
     }
@@ -55,6 +59,17 @@ export class OpusStreamPlayer {
         await this.createDecoder()
     }
 
+    async resetDecoder() {
+        if (!this.decoder) return
+
+        try {
+            await this.decoder.reset()
+        } catch (e) {
+            console.warn('Opus decoder reset failed, recreating decoder:', e)
+            await this.recreateDecoder()
+        }
+    }
+
     /**
      * 确保 AudioContext 处于运行状态
      */
@@ -64,50 +79,115 @@ export class OpusStreamPlayer {
         }
     }
 
-    concatBytes(first, second) {
-        if (first.length === 0) return second
-        if (second.length === 0) return first
-
-        const merged = new Uint8Array(first.length + second.length)
-        merged.set(first, 0)
-        merged.set(second, first.length)
-        return merged
-    }
-
     /**
-     * 解析裸 Opus 数据（带2字节长度头的多帧格式），并保留尾部不完整数据
-     * @param {Uint8Array} data - 裸 Opus 数据
-     * @returns {{ frames: Uint8Array[], remaining: Uint8Array }}
+     * 解析单条 WebSocket 消息中的 Opus 帧包（[2字节长度头][帧数据]...）
+     * @param {Uint8Array} packetData - 单条消息的二进制数据
+     * @returns {Uint8Array[]}
      */
-    parseOpusFrames(data) {
+    parsePacketFrames(packetData) {
         const frames = []
         let offset = 0
 
-        while (offset + 2 <= data.length) {
+        while (offset + 2 <= packetData.length) {
             // 读取帧长度（2字节小端）
-            const frameLength = (data[offset] & 0xFF) | ((data[offset + 1] & 0xFF) << 8)
+            const frameLength = (packetData[offset] & 0xFF) | ((packetData[offset + 1] & 0xFF) << 8)
             offset += 2
 
             if (frameLength <= 0) {
                 console.error('Invalid Opus frame length:', frameLength)
-                continue
+                break
             }
 
-            if (offset + frameLength > data.length) {
-                // 保留不完整数据，等待下一批拼接
-                offset -= 2
+            if (offset + frameLength > packetData.length) {
+                console.error(
+                    'Incomplete Opus frame in packet:',
+                    frameLength,
+                    'available:',
+                    packetData.length - offset
+                )
                 break
             }
 
             // 提取帧数据
-            const frameData = data.slice(offset, offset + frameLength)
+            const frameData = packetData.slice(offset, offset + frameLength)
             frames.push(frameData)
             offset += frameLength
         }
 
-        return {
-            frames,
-            remaining: data.slice(offset)
+        if (offset !== packetData.length) {
+            console.warn('Dropping unexpected trailing Opus bytes:', packetData.length - offset)
+        }
+
+        return frames
+    }
+
+    startQueueProcessor(requestVersion) {
+        if (this.isQueueProcessing) return
+
+        this.isQueueProcessing = true
+        this.processPacketQueue(requestVersion)
+            .catch((e) => {
+                console.error('Opus queue processing error:', e)
+            })
+            .finally(() => {
+                this.isQueueProcessing = false
+                if (this.packetQueue.length > 0 && requestVersion === this.streamVersion) {
+                    this.startQueueProcessor(requestVersion)
+                }
+            })
+    }
+
+    async processPacketQueue(requestVersion) {
+        while (requestVersion === this.streamVersion && this.packetQueue.length > 0) {
+            const decodeFrames = []
+            let shouldResetDecoder = false
+
+            while (this.packetQueue.length > 0 && decodeFrames.length < this.maxFramesPerDecode) {
+                const packet = this.packetQueue.shift()
+                if (packet.frames.length > 0) {
+                    decodeFrames.push(...packet.frames)
+                }
+
+                if (packet.isLastFrame) {
+                    shouldResetDecoder = true
+                    break
+                }
+            }
+
+            if (decodeFrames.length > 0) {
+                this.decodeAndSchedule(decodeFrames, requestVersion)
+            }
+
+            if (shouldResetDecoder && requestVersion === this.streamVersion) {
+                await this.resetDecoder()
+            }
+
+            await Promise.resolve()
+        }
+    }
+
+    decodeAndSchedule(frames, requestVersion) {
+        try {
+            const decoded = this.decoder.decodeFrames(frames)
+
+            if (decoded?.errors?.length) {
+                console.error('Opus decode errors:', decoded.errors)
+            }
+
+            const pcm = decoded?.channelData?.[0]
+            const decodedSampleRate = decoded?.sampleRate || this.sampleRate
+
+            if (pcm && pcm.length > 0 && requestVersion === this.streamVersion) {
+                const audioBuffer = this.audioContext.createBuffer(
+                    this.channels,
+                    pcm.length,
+                    decodedSampleRate
+                )
+                audioBuffer.getChannelData(0).set(pcm)
+                this.scheduleBuffer(audioBuffer)
+            }
+        } catch (e) {
+            console.error('Opus decode error:', e)
         }
     }
 
@@ -139,42 +219,12 @@ export class OpusStreamPlayer {
         }
 
         const incoming = opusData ? new Uint8Array(opusData) : new Uint8Array(0)
-        const mergedData = this.concatBytes(this.pendingOpusBytes, incoming)
-        const { frames, remaining } = this.parseOpusFrames(mergedData)
-        this.pendingOpusBytes = remaining
+        const frames = this.parsePacketFrames(incoming)
 
-        if (frames.length > 0) {
-            try {
-                const decoded = this.decoder.decodeFrames(frames)
-
-                if (decoded?.errors?.length) {
-                    console.error('Opus decode errors:', decoded.errors)
-                }
-
-                const pcm = decoded?.channelData?.[0]
-                const decodedSampleRate = decoded?.sampleRate || this.sampleRate
-
-                if (pcm && pcm.length > 0 && requestVersion === this.streamVersion) {
-                    const audioBuffer = this.audioContext.createBuffer(
-                        this.channels,
-                        pcm.length,
-                        decodedSampleRate
-                    )
-                    audioBuffer.getChannelData(0).set(pcm)
-                    this.scheduleBuffer(audioBuffer)
-                }
-            } catch (e) {
-                console.error('Opus decode error:', e)
-            }
-        }
-
-        if (isLastFrame) {
-            if (this.pendingOpusBytes.length > 0) {
-                console.warn('Dropping trailing incomplete Opus bytes:', this.pendingOpusBytes.length)
-                this.pendingOpusBytes = new Uint8Array(0)
-            }
-
-            await this.recreateDecoder()
+        // 即使当前包无音频，也保留段结束标记，用于 reset decoder
+        if (frames.length > 0 || isLastFrame) {
+            this.packetQueue.push({ frames, isLastFrame })
+            this.startQueueProcessor(requestVersion)
         }
     }
 
@@ -218,7 +268,8 @@ export class OpusStreamPlayer {
         this.activeSources.clear()
         this.currentSource = null
         this.nextStartTime = 0
-        this.pendingOpusBytes = new Uint8Array(0)
+        this.packetQueue = []
+        this.feedChain = Promise.resolve()
     }
 
     /**

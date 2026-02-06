@@ -367,7 +367,6 @@ public class ConcurrentTTSProcessor implements AutoCloseable {
      * 调用后不再接受新任务，等待现有任务处理完成
      */
     public void complete() {
-        log.debug("标记任务提交完成，等待处理");
         completed.set(true);
 
         // 尝试分发剩余结果
@@ -439,6 +438,5 @@ public class ConcurrentTTSProcessor implements AutoCloseable {
         }
 
         completionLatch.countDown();
-        log.info("并发 TTS 处理器已关闭");
     }
 }

@@ -117,6 +117,6 @@ public class ConversationService {
         Flux<String> sentenceStream = llmService.processLLMStream(state, text, config);
 
         // 3. TTS: 将句子流转为音频并发送
-        ttsService.processTTSStream(state, sentenceStream, config);
+        ttsService.processTTSStream(state, sentenceStream);
     }
 }

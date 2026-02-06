@@ -57,9 +57,8 @@ public class TTSService {
      *
      * @param state      会话状态
      * @param textStream 句子文本流（来自 LLM）
-     * @param config     对话配置
      */
-    public void processTTSStream(SessionState state, Flux<String> textStream, ConversationConfig config) {
+    public void processTTSStream(SessionState state, Flux<String> textStream) {
         ConcurrentTTSFrameProcessor processor = new ConcurrentTTSFrameProcessor(
                 ttsManager,
                 opusCodec,
