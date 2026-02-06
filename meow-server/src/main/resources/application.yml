@@ -82,8 +82,5 @@ native:
 # TTS配置
 tts:
   concurrent:
-    # 是否启用并发TTS模式（多线程并发调用TTS API，有序播放）
-    # 启用后可显著降低LLM快速返回时的整体延迟
-    enabled: true
     # 最大并发数（建议2-4，过高可能导致TTS服务限流）
     max-concurrency: 3

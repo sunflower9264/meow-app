@@ -31,20 +31,33 @@ public class ConversationService {
      *
      * @param state 会话状态
      * @param audioData 音频数据
+     * @param audioFormat 音频格式（来自客户端）
      */
-    public void processAudioInput(SessionState state, byte[] audioData) {
+    public void processAudioInput(SessionState state, byte[] audioData, String audioFormat) {
         if (audioData.length == 0) {
             log.debug("音频数据为空，跳过处理");
+            return;
+        }
+        if (!state.getSession().isOpen()) {
+            log.debug("会话 {} 已断开，跳过音频处理", state.getSessionId());
             return;
         }
 
         // 异步处理完整流程
         CompletableFuture.runAsync(() -> {
             try {
+                if (!state.getSession().isOpen()) {
+                    log.debug("会话 {} 已断开，取消 ASR->LLM->TTS 流程", state.getSessionId());
+                    return;
+                }
                 ConversationConfig config = configService.getConfigBySessionId(state.getSessionId());
 
                 // 1. ASR: 语音转文本
-                ASRResult asrResult = asrService.speechToText(audioData, config);
+                ASRResult asrResult = asrService.speechToText(audioData, audioFormat, config);
+                if (!state.getSession().isOpen()) {
+                    log.debug("会话 {} 在 ASR 后已断开，终止后续流程", state.getSessionId());
+                    return;
+                }
 
                 // 发送STT结果到客户端
                 messageSender.sendSTTResult(state, asrResult.getText(), true);
@@ -54,6 +67,9 @@ public class ConversationService {
 
             } catch (Exception e) {
                 log.error("对话处理失败", e);
+                if (!state.getSession().isOpen()) {
+                    return;
+                }
                 try {
                     messageSender.sendError(state, "处理失败: " + e.getMessage());
                 } catch (Exception ex) {
@@ -82,6 +98,15 @@ public class ConversationService {
      * @param config 对话配置
      */
     private void processTextInput(SessionState state, String text, ConversationConfig config) {
+        if (!state.getSession().isOpen()) {
+            log.debug("会话 {} 已断开，忽略文本输入处理", state.getSessionId());
+            return;
+        }
+        if (text == null || text.isBlank()) {
+            log.debug("文本输入为空，跳过处理");
+            return;
+        }
+
         // 重置中止状态
         state.resetAborted();
 

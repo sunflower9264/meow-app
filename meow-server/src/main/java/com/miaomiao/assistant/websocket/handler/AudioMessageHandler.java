@@ -25,11 +25,6 @@ public class AudioMessageHandler implements MessageHandler<AudioMessage> {
     }
 
     @Override
-    public Class<AudioMessage> getMessageClass() {
-        return AudioMessage.class;
-    }
-
-    @Override
     public void handle(SessionState state, AudioMessage message) {
         // 累积音频数据
         byte[] audioData = message.getData();
@@ -41,8 +36,8 @@ public class AudioMessageHandler implements MessageHandler<AudioMessage> {
         // 如果是最后一块音频，处理累积的数据
         if (message.isLast()) {
             byte[] fullAudioData = state.getAndClearAudioBuffer();
-            log.debug("音频接收完成，总计 {} 字节，开始处理", fullAudioData.length);
-            conversationService.processAudioInput(state, fullAudioData);
+            log.debug("音频接收完成，总计 {} 字节，格式: {}, 开始处理", fullAudioData.length, message.getFormat());
+            conversationService.processAudioInput(state, fullAudioData, message.getFormat());
         }
     }
 }

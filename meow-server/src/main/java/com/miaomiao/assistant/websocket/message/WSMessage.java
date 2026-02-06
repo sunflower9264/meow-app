@@ -16,11 +16,7 @@ import lombok.Data;
 )
 @JsonSubTypes({
         @JsonSubTypes.Type(value = AudioMessage.class, name = "audio"),
-        @JsonSubTypes.Type(value = StringMessage.class, name = "text"),
-        @JsonSubTypes.Type(value = ControlMessage.class, name = "control"),
-        @JsonSubTypes.Type(value = STTMessage.class, name = "stt"),
-        @JsonSubTypes.Type(value = TTSMessage.class, name = "tts"),
-        @JsonSubTypes.Type(value = SentenceMessage.class, name = "sentence"),
+        @JsonSubTypes.Type(value = StringMessage.class, name = "text")
 })
 
 public abstract class WSMessage {

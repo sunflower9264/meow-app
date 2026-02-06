@@ -71,17 +71,17 @@ public class LLMService {
         // 订阅LLM流 - 直接把token发给TTS pipeline
         Disposable llmDisposable = llmStream
                 .takeWhile(response -> !state.isAborted())
+                .doFinally(signalType -> {
+                    log.debug("LLM流结束: session={}, signal={}", state.getSessionId(), signalType);
+                    tokenSink.tryEmitComplete();
+                })
                 .subscribe(
                         llmResponse -> handleLLMResponse(state, llmResponse, text, fullResponse, tokenSink),
                         error -> {
                             log.error("LLM流错误", error);
-                            tokenSink.tryEmitComplete();
                         },
                         () -> {
-                            // LLM 流结束时，确保 tokenSink 完成
-                            // 这样 TTS 的 doOnComplete 才会被触发，处理缓冲区剩余内容
                             log.debug("LLM流完成");
-                            tokenSink.tryEmitComplete();
                         }
                 );
 

@@ -18,11 +18,6 @@ public interface MessageHandler<T extends WSMessage> {
     String getMessageType();
 
     /**
-     * 获取处理器支持的消息类
-     */
-    Class<T> getMessageClass();
-
-    /**
      * 处理消息
      *
      * @param state   会话状态

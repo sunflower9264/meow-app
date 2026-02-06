@@ -171,22 +171,6 @@ async function handleMessage(data) {
       ? base64ToArrayBuffer(data.data)
       : new ArrayBuffer(0)
     opusPlayer.feed(audioData, Boolean(data.finished))
-  } else if (data.type === 'sentence') {
-    // Streaming sentence from AI
-    if (data.eventType === 'sentence_start') {
-      currentSentence.value = data.text
-    } else if (data.eventType === 'sentence_end') {
-      // Add AI message bubble when sentence ends
-      messages.value.push({
-        id: Date.now() + Math.random(),
-        type: 'text',
-        role: 'assistant',
-        content: data.text,
-        timestamp: Date.now()
-      })
-      currentSentence.value = ''
-      scrollToBottom()
-    }
   }
 }
 
@@ -225,7 +209,10 @@ async function startRecording() {
 
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-    const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' })
+    const preferredMimeType = getPreferredRecordingMimeType()
+    const mediaRecorder = preferredMimeType
+      ? new MediaRecorder(stream, { mimeType: preferredMimeType })
+      : new MediaRecorder(stream)
 
     mediaRecorder.ondataavailable = async (event) => {
       if (event.data.size > 0) {
@@ -233,7 +220,7 @@ async function startRecording() {
         const base64 = arrayBufferToBase64(arrayBuffer)
         websocketStore.send({
           type: 'audio',
-          format: 'webm',
+          format: mediaRecorder.mimeType || preferredMimeType || 'audio/webm',
           data: base64,
           isLast: true
         })
@@ -310,6 +297,14 @@ function toggleMode() {
 function formatTime(timestamp) {
   const date = new Date(timestamp)
   return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+}
+
+function getPreferredRecordingMimeType() {
+  if (typeof MediaRecorder === 'undefined' || typeof MediaRecorder.isTypeSupported !== 'function') {
+    return ''
+  }
+  const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus']
+  return candidates.find(type => MediaRecorder.isTypeSupported(type)) || ''
 }
 
 // Audio utilities

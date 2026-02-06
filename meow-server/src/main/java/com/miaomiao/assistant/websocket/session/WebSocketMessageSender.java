@@ -2,7 +2,6 @@ package com.miaomiao.assistant.websocket.session;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.miaomiao.assistant.websocket.message.LLMTokenMessage;
-import com.miaomiao.assistant.websocket.message.SentenceMessage;
 import com.miaomiao.assistant.websocket.message.STTMessage;
 import com.miaomiao.assistant.websocket.message.TTSMessage;
 import com.miaomiao.assistant.websocket.message.WSMessage;
@@ -81,19 +80,6 @@ public class WebSocketMessageSender {
         sttMessage.setFinal(isFinal);
         sttMessage.setTimestamp(System.currentTimeMillis());
         sendMessage(state, sttMessage);
-    }
-
-    /**
-     * 发送句子分段消息
-     */
-    public void sendSentence(SessionState state, String text, int index) throws IOException {
-        SentenceMessage message = new SentenceMessage();
-        message.setType("sentence");
-        message.setEventType("sentence_end");
-        message.setText(text);
-        message.setIndex(index);
-        message.setTimestamp(System.currentTimeMillis());
-        sendMessage(state, message);
     }
 
     /**

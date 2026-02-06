@@ -87,7 +87,6 @@ public class TTSService {
                 })
                 .doOnError(error -> {
                     log.error("TTS 流错误", error);
-                    processor.close();
                 })
                 .doOnComplete(() -> {
                     try {
@@ -96,6 +95,10 @@ public class TTSService {
                     } catch (FrameProcessor.FrameProcessingException e) {
                         log.error("处理结束帧失败", e);
                     }
+                })
+                .doFinally(signalType -> {
+                    processor.close();
+                    log.debug("会话 {} TTS 流结束: {}", state.getSessionId(), signalType);
                 })
                 .subscribe();
     }

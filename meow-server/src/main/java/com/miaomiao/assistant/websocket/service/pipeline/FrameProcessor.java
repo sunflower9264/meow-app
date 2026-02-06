@@ -1,5 +1,7 @@
 package com.miaomiao.assistant.websocket.service.pipeline;
 
+import lombok.Getter;
+
 /**
  * Frame 处理器接口
  * <p>
@@ -23,24 +25,13 @@ public interface FrameProcessor {
     /**
      * 处理上下文
      */
+    @Getter
     class ProcessingContext {
         private final String sessionId;
         private volatile boolean interrupted = false;
 
         public ProcessingContext(String sessionId) {
             this.sessionId = sessionId;
-        }
-
-        public String getSessionId() {
-            return sessionId;
-        }
-
-        public boolean isInterrupted() {
-            return interrupted;
-        }
-
-        public void setInterrupted(boolean interrupted) {
-            this.interrupted = interrupted;
         }
 
         public void interrupt() {

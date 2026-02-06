@@ -25,11 +25,6 @@ public class TextMessageHandler implements MessageHandler<StringMessage> {
     }
 
     @Override
-    public Class<StringMessage> getMessageClass() {
-        return StringMessage.class;
-    }
-
-    @Override
     public void handle(SessionState state, StringMessage message) {
         String text = message.getText();
         if (text == null || text.isBlank()) {

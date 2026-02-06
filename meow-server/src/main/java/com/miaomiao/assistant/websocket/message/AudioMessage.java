@@ -1,5 +1,7 @@
 package com.miaomiao.assistant.websocket.message;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -9,7 +11,9 @@ import lombok.EqualsAndHashCode;
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class AudioMessage extends WSMessage {
-    private String format;       // Audio format: opus, wav, mp3
+    private String format;       // Audio format: webm, opus, wav, mp3
     private byte[] data;         // Base64 encoded audio data
-    private boolean isLast;      // Is this the last audio chunk
+    @JsonProperty("isLast")
+    @JsonAlias("last")
+    private boolean last;        // Is this the last audio chunk
 }
