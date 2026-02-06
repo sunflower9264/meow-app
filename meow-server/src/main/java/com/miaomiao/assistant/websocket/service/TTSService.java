@@ -1,10 +1,10 @@
 package com.miaomiao.assistant.websocket.service;
 
-import com.miaomiao.assistant.codec.OpusEncoder;
+import com.miaomiao.assistant.codec.OpusCodec;
 import com.miaomiao.assistant.model.tts.TTSManager;
 import com.miaomiao.assistant.service.ConversationConfigService;
 import com.miaomiao.assistant.websocket.ConversationConfig;
-import com.miaomiao.assistant.websocket.message.WebSocketMessageSender;
+import com.miaomiao.assistant.websocket.session.WebSocketMessageSender;
 import com.miaomiao.assistant.websocket.service.pipeline.ConcurrentTTSFrameProcessor;
 import com.miaomiao.assistant.websocket.service.pipeline.FrameProcessor;
 import com.miaomiao.assistant.websocket.service.pipeline.Frames;
@@ -34,7 +34,7 @@ import reactor.core.scheduler.Schedulers;
 public class TTSService {
 
     private final TTSManager ttsManager;
-    private final OpusEncoder opusEncoder;
+    private final OpusCodec opusCodec;
     private final WebSocketMessageSender messageSender;
     private final ConversationConfigService configService;
 
@@ -62,7 +62,7 @@ public class TTSService {
     public void processTTSStream(SessionState state, Flux<String> textStream, ConversationConfig config) {
         ConcurrentTTSFrameProcessor processor = new ConcurrentTTSFrameProcessor(
                 ttsManager,
-                opusEncoder,
+                opusCodec,
                 messageSender,
                 configService,
                 state,

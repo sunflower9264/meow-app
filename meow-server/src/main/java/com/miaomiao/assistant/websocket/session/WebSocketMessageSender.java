@@ -1,12 +1,11 @@
-package com.miaomiao.assistant.websocket.message;
+package com.miaomiao.assistant.websocket.session;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.miaomiao.assistant.websocket.dto.LLMTokenMessage;
-import com.miaomiao.assistant.websocket.dto.SentenceMessage;
-import com.miaomiao.assistant.websocket.dto.STTMessage;
-import com.miaomiao.assistant.websocket.dto.TTSMessage;
-import com.miaomiao.assistant.websocket.dto.WSMessage;
-import com.miaomiao.assistant.websocket.session.SessionState;
+import com.miaomiao.assistant.websocket.message.LLMTokenMessage;
+import com.miaomiao.assistant.websocket.message.SentenceMessage;
+import com.miaomiao.assistant.websocket.message.STTMessage;
+import com.miaomiao.assistant.websocket.message.TTSMessage;
+import com.miaomiao.assistant.websocket.message.WSMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.TextMessage;

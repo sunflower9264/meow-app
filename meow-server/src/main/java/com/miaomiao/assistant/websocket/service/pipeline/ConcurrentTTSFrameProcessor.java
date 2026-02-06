@@ -1,11 +1,11 @@
 package com.miaomiao.assistant.websocket.service.pipeline;
 
-import com.miaomiao.assistant.codec.OpusEncoder;
+import com.miaomiao.assistant.codec.OpusCodec;
 import com.miaomiao.assistant.model.tts.TTSManager;
 import com.miaomiao.assistant.model.tts.TTSOptions;
 import com.miaomiao.assistant.service.ConversationConfigService;
 import com.miaomiao.assistant.websocket.ConversationConfig;
-import com.miaomiao.assistant.websocket.message.WebSocketMessageSender;
+import com.miaomiao.assistant.websocket.session.WebSocketMessageSender;
 import com.miaomiao.assistant.websocket.session.SessionState;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +35,7 @@ public class ConcurrentTTSFrameProcessor implements FrameProcessor {
      * 构造函数
      *
      * @param ttsManager          TTS 管理器
-     * @param opusEncoder         音频转换器
+     * @param opusCodec         音频转换器
      * @param messageSender       WebSocket 消息发送器
      * @param configService       配置服务
      * @param sessionState        会话状态
@@ -44,7 +44,7 @@ public class ConcurrentTTSFrameProcessor implements FrameProcessor {
      */
     public ConcurrentTTSFrameProcessor(
             TTSManager ttsManager,
-            OpusEncoder opusEncoder,
+            OpusCodec opusCodec,
             WebSocketMessageSender messageSender,
             ConversationConfigService configService,
             SessionState sessionState,
@@ -62,7 +62,7 @@ public class ConcurrentTTSFrameProcessor implements FrameProcessor {
         // 创建并发 TTS 处理器
         this.concurrentProcessor = new ConcurrentTTSProcessor(
                 ttsManager,
-                opusEncoder,
+                opusCodec,
                 (opusFrame, isLast) -> {
                     try {
                         // 记录 TTS 首次响应时间（性能指标）

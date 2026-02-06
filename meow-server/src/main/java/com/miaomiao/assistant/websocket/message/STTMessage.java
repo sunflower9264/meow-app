@@ -1,4 +1,4 @@
-package com.miaomiao.assistant.websocket.dto;
+package com.miaomiao.assistant.websocket.message;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;

@@ -1,9 +1,9 @@
 package com.miaomiao.assistant.websocket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.miaomiao.assistant.websocket.dto.WSMessage;
+import com.miaomiao.assistant.websocket.message.WSMessage;
 import com.miaomiao.assistant.websocket.handler.MessageHandlerRegistry;
-import com.miaomiao.assistant.websocket.message.WebSocketMessageSender;
+import com.miaomiao.assistant.websocket.session.WebSocketMessageSender;
 import com.miaomiao.assistant.websocket.session.SessionManager;
 import com.miaomiao.assistant.websocket.session.SessionState;
 import lombok.extern.slf4j.Slf4j;

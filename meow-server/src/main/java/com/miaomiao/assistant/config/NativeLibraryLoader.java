@@ -35,7 +35,6 @@ public class NativeLibraryLoader {
 
     /**
      * 成功加载native库的目录路径
-     * 供其他组件（如OpusEncoder）使用
      */
     @Getter
     private File nativeDirectory = null;

@@ -1,6 +1,6 @@
 package com.miaomiao.assistant.websocket.service.pipeline;
 
-import com.miaomiao.assistant.codec.OpusEncoder;
+import com.miaomiao.assistant.codec.OpusCodec;
 import com.miaomiao.assistant.model.tts.TTSAudio;
 import com.miaomiao.assistant.model.tts.TTSManager;
 import com.miaomiao.assistant.model.tts.TTSOptions;
@@ -77,7 +77,7 @@ public class ConcurrentTTSProcessor implements AutoCloseable {
 
     // 依赖组件
     private final TTSManager ttsManager;
-    private final OpusEncoder opusEncoder;
+    private final OpusCodec opusCodec;
 
     // 线程池和队列
     private final ExecutorService ttsExecutor;
@@ -105,7 +105,7 @@ public class ConcurrentTTSProcessor implements AutoCloseable {
      * 构造函数（带音频保存回调）
      *
      * @param ttsManager     TTS 管理器
-     * @param opusEncoder    音频转换器
+     * @param opusCodec    音频转换器
      * @param audioSender    音频发送回调
      * @param errorHandler   错误处理回调
      * @param maxConcurrency 最大并发数（建议 2-4）
@@ -113,13 +113,13 @@ public class ConcurrentTTSProcessor implements AutoCloseable {
      */
     public ConcurrentTTSProcessor(
             TTSManager ttsManager,
-            OpusEncoder opusEncoder,
+            OpusCodec opusCodec,
             BiConsumer<byte[], Boolean> audioSender,
             Consumer<String> errorHandler,
             int maxConcurrency,
             BiConsumer<byte[], byte[]> audioSaver) {
         this.ttsManager = ttsManager;
-        this.opusEncoder = opusEncoder;
+        this.opusCodec = opusCodec;
         this.audioSender = audioSender;
         this.errorHandler = errorHandler;
         this.audioSaver = audioSaver;
@@ -202,7 +202,7 @@ public class ConcurrentTTSProcessor implements AutoCloseable {
                     result = TTSResult.failure(task.getSequence(), task.getText(), "PCM 数据为空");
                 } else {
                     // 转换为 OPUS
-                    byte[] opusData = opusEncoder.encodePcmToOpus(pcmData);
+                    byte[] opusData = opusCodec.encodePcmToOpus(pcmData);
                     result = TTSResult.success(task.getSequence(), task.getText(), pcmData, opusData);
                 }
             }

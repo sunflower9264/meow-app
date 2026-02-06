@@ -1,6 +1,6 @@
 package com.miaomiao.assistant.websocket.handler;
 
-import com.miaomiao.assistant.websocket.dto.StringMessage;
+import com.miaomiao.assistant.websocket.message.StringMessage;
 import com.miaomiao.assistant.websocket.service.ConversationService;
 import com.miaomiao.assistant.websocket.session.SessionState;
 import lombok.extern.slf4j.Slf4j;

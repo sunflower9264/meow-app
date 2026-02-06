@@ -3,16 +3,21 @@ package com.miaomiao.assistant;
 import cn.hutool.core.io.FileUtil;
 import com.miaomiao.assistant.codec.OpusCodec;
 
-import javax.sound.sampled.*;
+import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.DataLine;
+import javax.sound.sampled.SourceDataLine;
+import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 
 /**
  * Opus编解码测试工具
  * 用于测试PCM -> Opus编码、播放、Opus -> PCM解码的完整流程
  */
-public class OpusCodecTest {
+public class OpusPlayTest {
 
     // Opus编解码参数（与编码器保持一致）
     private static final int SAMPLE_RATE = 24000;
@@ -21,20 +26,14 @@ public class OpusCodecTest {
     public static void main(String[] args) throws Exception {
         loadNativeLibrary();
         OpusCodec opusCodec = new OpusCodec();
+        String path = "D:\\myworkspace\\meow\\tts_output\\6acf62aa-2178-3222-e851-78b0a378616e_20260206_133123";
 
-        // 1. 播放原始PCM
-        System.out.println("\n========== 播放原始PCM音频 ==========");
-        byte[] originalPcm = FileUtil.readBytes("D:\\myworkspace\\meow\\meow-server\\src\\test\\resources\\tts_001.pcm");
-        playPcmAudio(originalPcm);
-
-        // 2. 转成Opus
-        byte[] opus = opusCodec.encodePcmToOpus(originalPcm);
-
-        // 3. 播放裸Opus
-        System.out.println("\n========== 播放裸Opus音频（解码后播放） ==========");
-
-        byte[] rawOpusDecodedPcm = opusCodec.decodeOpusToPcm(opus);
-        playPcmAudio(rawOpusDecodedPcm);
+        List<File> files = FileUtil.loopFiles(path);
+        for (File file : files) {
+            byte[] originalOpus = FileUtil.readBytes(file);
+            byte[] rawOpusDecodedPcm = opusCodec.decodeOpusToPcm(originalOpus);
+            playPcmAudio(rawOpusDecodedPcm);
+        }
     }
 
     /**

@@ -1,6 +1,6 @@
 package com.miaomiao.assistant.websocket.handler;
 
-import com.miaomiao.assistant.websocket.dto.WSMessage;
+import com.miaomiao.assistant.websocket.message.WSMessage;
 import com.miaomiao.assistant.websocket.session.SessionState;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;

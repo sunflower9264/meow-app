@@ -167,10 +167,10 @@ async function handleMessage(data) {
     }
   } else if (data.type === 'tts') {
     // TTS audio from backend - raw Opus frames, decode and play via Web Audio API
-    if (data.data && data.data.length > 0) {
-      const audioData = base64ToArrayBuffer(data.data)
-      opusPlayer.feed(audioData)
-    }
+    const audioData = data.data && data.data.length > 0
+      ? base64ToArrayBuffer(data.data)
+      : new ArrayBuffer(0)
+    opusPlayer.feed(audioData, Boolean(data.finished))
   } else if (data.type === 'sentence') {
     // Streaming sentence from AI
     if (data.eventType === 'sentence_start') {

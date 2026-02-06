@@ -6,7 +6,7 @@ import com.miaomiao.assistant.model.llm.LLMManager;
 import com.miaomiao.assistant.model.llm.LLMOptions;
 import com.miaomiao.assistant.service.SystemPromptService;
 import com.miaomiao.assistant.websocket.ConversationConfig;
-import com.miaomiao.assistant.websocket.message.WebSocketMessageSender;
+import com.miaomiao.assistant.websocket.session.WebSocketMessageSender;
 import com.miaomiao.assistant.websocket.session.SessionState;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -1,4 +1,4 @@
-package com.miaomiao.assistant.websocket.dto;
+package com.miaomiao.assistant.websocket.message;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
