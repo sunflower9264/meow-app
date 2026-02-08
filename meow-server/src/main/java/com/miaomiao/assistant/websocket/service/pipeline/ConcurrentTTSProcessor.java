@@ -172,9 +172,8 @@ public class ConcurrentTTSProcessor implements AutoCloseable {
             return;
         }
         TTSResult result;
+        long startNanos = System.nanoTime();
         try {
-            log.debug("开始执行 TTS 任务: seq={}, text={}", task.getSequence(), task.getText());
-
             // 调用 TTS 获取音频流
             List<TTSAudio> audioChunks = ttsManager.textToSpeechStream(
                     task.getProviderModelKey(),
@@ -209,6 +208,18 @@ public class ConcurrentTTSProcessor implements AutoCloseable {
         } catch (Exception e) {
             log.error("TTS 任务执行失败: seq={}, text={}", task.getSequence(), task.getText(), e);
             result = TTSResult.failure(task.getSequence(), task.getText(), e.getMessage());
+        }
+
+        long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+        int textLength = task.getText() == null ? 0 : task.getText().length();
+        if (result.isSuccess()) {
+            int pcmBytes = result.getPcmData() == null ? 0 : result.getPcmData().length;
+            int opusBytes = result.getOpusData() == null ? 0 : result.getOpusData().length;
+            log.debug("TTS 任务完成: seq={}, textLen={}, pcmBytes={}, opusBytes={}, elapsedMs={}",
+                    task.getSequence(), textLength, pcmBytes, opusBytes, elapsedMs);
+        } else {
+            log.warn("TTS 任务完成(失败): seq={}, textLen={}, error={}, elapsedMs={}",
+                    task.getSequence(), textLength, result.getErrorMessage(), elapsedMs);
         }
 
         // 将结果放入待处理映射
@@ -299,7 +310,7 @@ public class ConcurrentTTSProcessor implements AutoCloseable {
     }
 
     /**
-     * 发送 OPUS 音频数据（带时机控制）
+     * 发送 OPUS 音频数据
      */
     private void sendAudioWithTiming(byte[] opusData) {
         if (opusData == null || opusData.length == 0) {
@@ -308,8 +319,6 @@ public class ConcurrentTTSProcessor implements AutoCloseable {
 
         // 按 OPUS 帧发送，每帧格式：[2字节长度头][帧数据]
         int offset = 0;
-        int frameCount = 0;
-        int totalFrames = countOpusFrames(opusData);
 
         while (offset + 2 <= opusData.length && running.get()) {
             // 读取帧长度（2字节小端序）
@@ -327,38 +336,12 @@ public class ConcurrentTTSProcessor implements AutoCloseable {
             System.arraycopy(opusData, offset, frame, 0, totalFrameSize);
 
             // 发送帧
-            frameCount++;
             // finished 表示“本段 TTS 的最后一帧”
             boolean isLastFrame = (offset + totalFrameSize >= opusData.length);
             audioSender.accept(frame, isLastFrame);
 
-            // 简单的时机控制：每帧 20ms，但不完全阻塞以保持响应性
-            // 实际时机控制可以更精细
-            if (!isLastFrame) {
-                try {
-                    Thread.sleep(18); // 稍微短于20ms，留出处理余量
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
-            }
-
             offset += totalFrameSize;
         }
-    }
-
-    /**
-     * 计算 OPUS 帧数
-     */
-    private int countOpusFrames(byte[] opusData) {
-        int count = 0;
-        int offset = 0;
-        while (offset + 2 <= opusData.length) {
-            int frameLen = (opusData[offset] & 0xFF) | ((opusData[offset + 1] & 0xFF) << 8);
-            offset += 2 + frameLen;
-            count++;
-        }
-        return count;
     }
 
     /**

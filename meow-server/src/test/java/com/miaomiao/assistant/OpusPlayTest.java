@@ -26,12 +26,13 @@ public class OpusPlayTest {
     public static void main(String[] args) throws Exception {
         loadNativeLibrary();
         OpusCodec opusCodec = new OpusCodec();
-        String path = "D:\\myworkspace\\meow\\tts_output\\6acf62aa-2178-3222-e851-78b0a378616e_20260206_133123";
+        String path = "D:\\myworkspace\\meow\\tts_output\\b609bf4c-b7b2-ecb8-bd66-c47490ea7e2f_20260208_095758";
 
         List<File> files = FileUtil.loopFiles(path);
         for (File file : files) {
             byte[] originalOpus = FileUtil.readBytes(file);
             byte[] rawOpusDecodedPcm = opusCodec.decodeOpusToPcm(originalOpus);
+            System.out.println(file.getName());
             playPcmAudio(rawOpusDecodedPcm);
         }
     }
