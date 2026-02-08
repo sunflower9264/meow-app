@@ -88,6 +88,10 @@ public class TTSService {
                     log.error("TTS 流错误", error);
                 })
                 .doOnComplete(() -> {
+                    if (state.isAborted() || context.isInterrupted()) {
+                        log.debug("会话 {} 已中止，跳过 EndFrame 处理", state.getSessionId());
+                        return;
+                    }
                     try {
                         processor.processFrame(new Frames.EndFrame(), context);
                         log.debug("会话 {} TTS 流处理完成", state.getSessionId());

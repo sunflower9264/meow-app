@@ -24,6 +24,11 @@ export class OpusStreamPlayer {
 
         this.feedChain = Promise.resolve()
         this.streamVersion = 0
+
+        this.playbackStateListeners = new Set()
+        this.playbackEndedListeners = new Set()
+        this.playbackPausedListeners = new Set()
+        this.lastPlaybackState = false
     }
 
     /**
@@ -131,6 +136,10 @@ export class OpusStreamPlayer {
             })
             .finally(() => {
                 this.isQueueProcessing = false
+                if (this.packetQueue.length === 0 && this.activeSources.size === 0 && this.audioContext) {
+                    this.nextStartTime = this.audioContext.currentTime
+                }
+                this.notifyPlaybackState(false, 'ended')
                 if (this.packetQueue.length > 0 && requestVersion === this.streamVersion) {
                     this.startQueueProcessor(requestVersion)
                 }
@@ -245,9 +254,16 @@ export class OpusStreamPlayer {
 
         this.activeSources.add(source)
         this.currentSource = source
+        this.notifyPlaybackState()
         source.onended = () => {
             this.activeSources.delete(source)
             if (this.currentSource === source) this.currentSource = null
+
+            // 所有已调度音频都播放完时，回收 nextStartTime，避免尾态误判为“仍在播放”
+            if (this.activeSources.size === 0 && this.packetQueue.length === 0 && !this.isQueueProcessing) {
+                this.nextStartTime = this.audioContext.currentTime
+            }
+            this.notifyPlaybackState(false, 'ended')
         }
     }
 
@@ -269,7 +285,97 @@ export class OpusStreamPlayer {
         this.currentSource = null
         this.nextStartTime = 0
         this.packetQueue = []
+        this.isQueueProcessing = false
         this.feedChain = Promise.resolve()
+        this.notifyPlaybackState(true, 'paused')
+    }
+
+    /**
+     * 当前是否仍有流式音频在播放或排队
+     */
+    isPlaying() {
+        if (!this.audioContext) {
+            return false
+        }
+
+        const hasActiveSources = this.activeSources.size > 0
+        const hasScheduledBuffer = this.nextStartTime - this.audioContext.currentTime > 0.02
+        return hasActiveSources || hasScheduledBuffer
+    }
+
+    notifyPlaybackState(force = false, reason = 'state_change') {
+        const playing = this.isPlaying()
+        const previous = this.lastPlaybackState
+        const stateChanged = playing !== previous
+
+        if (!force && !stateChanged) {
+            return
+        }
+
+        this.lastPlaybackState = playing
+
+        if (!playing && (stateChanged || force)) {
+            if (reason === 'paused') {
+                this.emitPlaybackPaused()
+            } else {
+                this.emitPlaybackEnded()
+            }
+        }
+
+        for (const listener of this.playbackStateListeners) {
+            try {
+                listener(playing)
+            } catch (e) {
+                console.error('Opus playback listener error:', e)
+            }
+        }
+    }
+
+    onPlaybackStateChange(listener) {
+        this.playbackStateListeners.add(listener)
+        try {
+            listener(this.isPlaying())
+        } catch (e) {
+            console.error('Opus playback listener error:', e)
+        }
+
+        return () => {
+            this.playbackStateListeners.delete(listener)
+        }
+    }
+
+    emitPlaybackEnded() {
+        for (const listener of this.playbackEndedListeners) {
+            try {
+                listener()
+            } catch (e) {
+                console.error('Opus playback ended listener error:', e)
+            }
+        }
+    }
+
+    emitPlaybackPaused() {
+        for (const listener of this.playbackPausedListeners) {
+            try {
+                listener()
+            } catch (e) {
+                console.error('Opus playback paused listener error:', e)
+            }
+        }
+    }
+
+    onPlaybackEnded(listener) {
+        this.playbackEndedListeners.add(listener)
+        return () => {
+            this.playbackEndedListeners.delete(listener)
+        }
+    }
+
+    onPlaybackPaused(listener) {
+        this.playbackPausedListeners.add(listener)
+        return () => {
+            this.playbackPausedListeners.delete(listener)
+        }
     }
 
     /**
@@ -284,6 +390,9 @@ export class OpusStreamPlayer {
      */
     async destroy() {
         this.stop()
+        this.playbackStateListeners.clear()
+        this.playbackEndedListeners.clear()
+        this.playbackPausedListeners.clear()
 
         if (this.decoder) {
             this.decoder.free()

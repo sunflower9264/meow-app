@@ -83,6 +83,17 @@ public class ConversationService {
         });
     }
 
+    /**
+     * 终止当前会话中的活跃处理流程（LLM/TTS 等）。
+     */
+    public void terminateCurrentResponse(SessionState state) {
+        if (state == null) {
+            return;
+        }
+        state.abort();
+        state.getAndClearAudioBuffer();
+    }
+
     private String transcribeAudioStreaming(SessionState state, byte[] audioData, String audioFormat, ConversationConfig config) {
         return asrService.speechToTextStream(audioData, audioFormat, config)
                 .map(ASRResult::getText)

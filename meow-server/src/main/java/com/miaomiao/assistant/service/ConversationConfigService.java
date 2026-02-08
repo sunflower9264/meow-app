@@ -24,11 +24,12 @@ public class ConversationConfigService {
                 .llmModel("glm-4.5")
                 .ttsProvider("zhipu")
                 .ttsModel("glm-tts")
-                .ttsVoice("female")
+//                .ttsVoice("female")
+                .ttsVoice("5ec8c733-8b18-59ea-91e7-fdee5c714533")
                 .ttsSpeed(1.1F)
                 .ttsVolume(1.0F)
                 .ttsFormat("pcm")
-                .maxTokens(500)
+                .maxTokens(200)
                 .characterId("default")
                 .build();
     }

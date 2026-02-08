@@ -15,7 +15,8 @@ import lombok.Data;
         visible = true
 )
 @JsonSubTypes({
-        @JsonSubTypes.Type(value = StringMessage.class, name = "text")
+        @JsonSubTypes.Type(value = StringMessage.class, name = "text"),
+        @JsonSubTypes.Type(value = TerminateMessage.class, name = "terminate")
 })
 
 public abstract class WSMessage {

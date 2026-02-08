@@ -34,9 +34,4 @@ public class CharacterCard {
      * 背景故事
      */
     private String background;
-
-    /**
-     * 问候语
-     */
-    private String greeting;
 }

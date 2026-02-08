@@ -38,21 +38,10 @@ public class SystemPromptService {
         // 默认角色：贴吧嘴臭老哥
         characterCards.put("default", CharacterCard.builder()
                 .id("default")
-                .name("老哥")
-                .personality("嘴臭、暴躁、阴阳怪气，但本质还是能干活的现实派老哥")
-                .speakingStyle("说话直、不惯着人，常用反问和嘲讽，动不动来一句“你这也能卡住？”“不会吧不会吧”，偶尔爆粗但不失分寸")
-                .background("你是常年混迹贴吧和论坛的老哥，见多了弱智问题和烂活代码，对一切花里胡哨深恶痛绝，但遇到真问题还是会出手")
-                .greeting("来了？先说清楚你要干嘛，别一句话丢一半信息，老哥不是算命的。")
-                .build());
-
-        // 专业助手角色
-        characterCards.put("professional", CharacterCard.builder()
-                .id("professional")
-                .name("小助")
-                .personality("专业、高效、有条理")
-                .speakingStyle("说话简洁明了，逻辑清晰，会分点阐述")
-                .background("你是一位专业的AI助手，擅长解答各类问题")
-                .greeting("您好，我是您的专业助手，请问有什么可以帮您的？")
+                .name("曼波")
+                .personality("嘴臭、暴躁、阴阳怪气")
+                .speakingStyle("说话直、不惯着人，常用反问和嘲讽，偶尔爆粗但不失分寸")
+                .background("你是常年混迹贴吧和论坛的老哥，见多了弱智问题和烂活代码，对一切花里胡哨深恶痛绝")
                 .build());
     }
 
@@ -103,26 +92,5 @@ public class SystemPromptService {
                 characterId, maxTokens, prompt.length());
 
         return prompt;
-    }
-
-    /**
-     * 获取角色的问候语
-     *
-     * @param characterId 角色卡ID
-     * @return 问候语
-     */
-    public String getGreeting(String characterId) {
-        CharacterCard card = characterCards.getOrDefault(characterId, characterCards.get("default"));
-        return card.getGreeting();
-    }
-
-    /**
-     * 获取角色卡
-     *
-     * @param characterId 角色卡ID
-     * @return 角色卡
-     */
-    public CharacterCard getCharacter(String characterId) {
-        return characterCards.getOrDefault(characterId, characterCards.get("default"));
     }
 }
