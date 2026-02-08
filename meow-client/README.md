@@ -40,19 +40,33 @@ npm run build
 
 ### Client -> Server
 
+Text frames:
+
 | Type | Fields | Description |
 |------|--------|-------------|
 | `text` | `text` | Send text message |
-| `audio` | `format`, `data`, `isLast` | Send audio chunk (base64) |
+
+Binary frames:
+
+| Frame Type | Header | Payload | Description |
+|-----------|--------|---------|-------------|
+| `1` (audio input) | `magic=0x4D`, `flags(final)`, `format` | raw recorder bytes | Send voice chunks to server |
 
 ### Server -> Client
+
+Text frames:
 
 | Type | Fields | Description |
 |------|--------|-------------|
 | `text` | `text`, `role` | Text message response |
 | `stt` | `text` | Speech-to-text result |
-| `tts` | `data`, `format` | Text-to-speech audio (base64) |
-| `sentence` | `eventType`, `text` | Sentence boundary event |
+| `llm_token` | `token`, `accumulated`, `finished` | Streaming LLM token updates |
+
+Binary frames:
+
+| Frame Type | Header | Payload | Description |
+|-----------|--------|---------|-------------|
+| `2` (tts output) | `magic=0x4D`, `flags(final)`, `format=opus` | raw opus frame packet | Stream TTS audio to client |
 
 ## Development Server
 

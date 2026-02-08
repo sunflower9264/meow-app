@@ -3,13 +3,13 @@ package com.miaomiao.assistant.model.asr.provider;
 import ai.z.openapi.ZhipuAiClient;
 import ai.z.openapi.service.audio.AudioTranscriptionRequest;
 import ai.z.openapi.service.audio.AudioTranscriptionResponse;
+import ai.z.openapi.service.audio.AudioTranscriptionChunk;
 import com.miaomiao.assistant.model.asr.ASROptions;
 import com.miaomiao.assistant.model.asr.ASRResult;
 import com.miaomiao.assistant.model.asr.BaseASRModelProvider;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -20,6 +20,8 @@ import java.nio.file.Path;
 @Slf4j
 public class ZhipuASRProvider extends BaseASRModelProvider {
 
+    private static final String FILE_EXTENSION = ".wav";
+
     private final ZhipuAiClient client;
 
     public ZhipuASRProvider(String providerName, ZhipuAiClient client) {
@@ -29,50 +31,57 @@ public class ZhipuASRProvider extends BaseASRModelProvider {
     }
 
     @Override
-    public ASRResult speechToText(byte[] audioData, ASROptions options) {
-        Path tempFile = null;
-        try {
-            // 创建临时文件
-            tempFile = createTempFile(audioData, options.getFormat());
-            File file = tempFile.toFile();
-
-            // 构建请求
-            AudioTranscriptionRequest request = AudioTranscriptionRequest.builder()
-                    .model(options.getModel())
-                    .file(file)
-                    .stream(false)
-                    .build();
-
-            // 调用ASR
-            AudioTranscriptionResponse response = client.audio().createTranscription(request);
-
-            if (response.isSuccess()) {
-                return ASRResult.of(response.getData().getText());
-            } else {
-                throw new RuntimeException("ASR请求失败: " + response.getMsg());
-            }
-
-        } catch (Exception e) {
-            log.error("ASR请求失败", e);
-            throw new RuntimeException("语音识别失败", e);
-        } finally {
-            // 清理临时文件
-            if (tempFile != null) {
-                try {
-                    Files.deleteIfExists(tempFile);
-                } catch (IOException ignored) {
-                }
-            }
-        }
-    }
-
-    @Override
     public Flux<ASRResult> speechToTextStream(Flux<byte[]> audioStream, ASROptions options) {
-        // 智谱目前不支持真正的流式ASR，这里转为批量处理
         return audioStream
                 .reduce(new byte[0], this::concatBytes)
-                .map(allData -> speechToText(allData, options))
-                .flux();
+                .flatMapMany(allData -> {
+                    if (allData.length == 0) {
+                        return Flux.empty();
+                    }
+
+                    Path tempFile = null;
+                    try {
+                        tempFile = createTempFile(allData);
+
+                        AudioTranscriptionRequest request = AudioTranscriptionRequest.builder()
+                                .model(options.getModel())
+                                .file(tempFile.toFile())
+                                .stream(true)
+                                .build();
+
+                        AudioTranscriptionResponse response = client.audio().createTranscription(request);
+
+                        Flux<ASRResult> chunkFlux = Flux.empty();
+                        if (response.getFlowable() != null) {
+                            chunkFlux = Flux.from(response.getFlowable())
+                                    .handle((chunk, sink) -> {
+                                        String text = extractChunkText(chunk);
+                                        if (hasText(text)) {
+                                            sink.next(new ASRResult(text, false, null));
+                                        }
+                                    });
+                        }
+
+                        String finalText = null;
+                        if (response.getData() != null) {
+                            finalText = response.getData().getText();
+                        }
+                        if (response.getFlowable() == null && !hasText(finalText) && !response.isSuccess()) {
+                            throw new RuntimeException("ASR流式请求失败: " + response.getMsg());
+                        }
+                        Flux<ASRResult> finalFlux = hasText(finalText)
+                                ? Flux.just(new ASRResult(finalText, true, null))
+                                : Flux.empty();
+
+                        Path finalTempFile = tempFile;
+                        return chunkFlux.concatWith(finalFlux)
+                                .doFinally(signal -> deleteTempFile(finalTempFile));
+                    } catch (Exception e) {
+                        deleteTempFile(tempFile);
+                        log.error("ASR流式请求失败", e);
+                        return Flux.error(new RuntimeException("语音流式识别失败", e));
+                    }
+                });
     }
 
     private byte[] concatBytes(byte[] a, byte[] b) {
@@ -82,17 +91,48 @@ public class ZhipuASRProvider extends BaseASRModelProvider {
         return result;
     }
 
-    private Path createTempFile(byte[] audioData, String format) throws IOException {
-        String extension = getExtension(format);
-        Path tempFile = Files.createTempFile("asr_", "." + extension);
+    private String extractChunkText(AudioTranscriptionChunk chunk) {
+        if (chunk == null) {
+            return null;
+        }
+
+        String topLevelDelta = chunk.getDelta();
+        if (hasText(topLevelDelta)) {
+            return topLevelDelta;
+        }
+
+        if (chunk.getChoices() == null || chunk.getChoices().isEmpty()) {
+            return null;
+        }
+
+        StringBuilder builder = new StringBuilder();
+        chunk.getChoices().forEach(choice -> {
+            if (choice != null && choice.getDelta() != null && hasText(choice.getDelta().getContent())) {
+                builder.append(choice.getDelta().getContent());
+            }
+        });
+        String text = builder.toString();
+        return hasText(text) ? text : null;
+    }
+
+    private boolean hasText(String text) {
+        return text != null && !text.isBlank();
+    }
+
+    private Path createTempFile(byte[] audioData) throws IOException {
+        Path tempFile = Files.createTempFile("asr_", FILE_EXTENSION);
         Files.write(tempFile, audioData);
         return tempFile;
     }
 
-    private String getExtension(String format) {
-        if (format == null || format.isEmpty()) {
-            return "wav";
+    private void deleteTempFile(Path tempFile) {
+        if (tempFile == null) {
+            return;
         }
-        return format.toLowerCase().replace("audio/", "").replace("mpeg", "mp3");
+        try {
+            Files.deleteIfExists(tempFile);
+        } catch (IOException ignored) {
+        }
     }
+
 }

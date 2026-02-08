@@ -193,7 +193,7 @@ export class OpusStreamPlayer {
 
     /**
      * 接收并播放 Opus 数据
-     * @param {ArrayBuffer} opusData - Base64 解码后的 Opus 数据
+     * @param {ArrayBuffer} opusData - 二进制 Opus 数据
      * @param {boolean} isLastFrame - 当前句子的最后一帧
      */
     feed(opusData, isLastFrame = false) {

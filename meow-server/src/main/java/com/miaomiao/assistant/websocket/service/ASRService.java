@@ -7,6 +7,7 @@ import com.miaomiao.assistant.websocket.ConversationConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 
 import java.util.Locale;
 
@@ -18,26 +19,32 @@ import java.util.Locale;
 @RequiredArgsConstructor
 public class ASRService {
 
+    private static final String SUPPORTED_FORMAT = "wav";
+
     private final ASRManager asrManager;
 
     /**
-     * 将音频数据转换为文本
+     * 将音频数据流式转换为文本
      *
      * @param audioData 音频数据
      * @param audioFormat 客户端上报的音频格式
      * @param config 对话配置
-     * @return ASR识别结果
+     * @return ASR识别结果流
      */
-    public ASRResult speechToText(byte[] audioData, String audioFormat, ConversationConfig config) {
-        String format = normalizeAudioFormat(audioFormat);
-        ASROptions asrOptions = ASROptions.of(config.getAsrModel(), format);
-        log.debug("ASR 开始识别: format={}, bytes={}", format, audioData.length);
-        return asrManager.speechToText(config.getASRModelKey(), audioData, asrOptions);
+    public Flux<ASRResult> speechToTextStream(byte[] audioData, String audioFormat, ConversationConfig config) {
+        String normalizedFormat = normalizeAudioFormat(audioFormat);
+        if (!SUPPORTED_FORMAT.equals(normalizedFormat)) {
+            throw new IllegalArgumentException("ASR仅支持wav格式音频，当前格式: " + audioFormat);
+        }
+
+        ASROptions asrOptions = ASROptions.of(config.getAsrModel(), SUPPORTED_FORMAT);
+        log.debug("ASR 流式识别开始: format={}, bytes={}", SUPPORTED_FORMAT, audioData.length);
+        return asrManager.speechToTextStream(config.getASRModelKey(), Flux.just(audioData), asrOptions);
     }
 
     private String normalizeAudioFormat(String audioFormat) {
         if (audioFormat == null || audioFormat.isBlank()) {
-            return "opus";
+            return SUPPORTED_FORMAT;
         }
 
         String normalized = audioFormat.trim().toLowerCase(Locale.ROOT);
@@ -45,10 +52,7 @@ public class ASRService {
         if (semicolonIndex >= 0) {
             normalized = normalized.substring(0, semicolonIndex);
         }
-        if (normalized.startsWith("audio/")) {
-            normalized = normalized.substring("audio/".length());
-        }
-
+        normalized = normalized.replace("audio/", "");
         return switch (normalized) {
             case "x-wav" -> "wav";
             case "mpeg" -> "mp3";

@@ -5,6 +5,10 @@ import com.miaomiao.assistant.config.AIServiceConfig;
 import com.miaomiao.assistant.model.AbstractModelManager;
 import com.miaomiao.assistant.model.asr.provider.ZhipuASRProvider;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Flux;
+
+import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * ASR服务管理器
@@ -33,10 +37,21 @@ public class ASRManager extends AbstractModelManager {
     }
 
     /**
-     * 语音转文字（同步）
+     * 语音转文字（流式）
      */
-    public ASRResult speechToText(String providerAndModelKey, byte[] audioData, ASROptions options) {
+    public Flux<ASRResult> speechToTextStream(String providerAndModelKey, Flux<byte[]> audioStream, ASROptions options) {
+        BaseASRModelProvider provider = getProviderOrThrow(providerAndModelKey);
+        return provider.speechToTextStream(audioStream, options);
+    }
+
+    private BaseASRModelProvider getProviderOrThrow(String providerAndModelKey) {
         BaseASRModelProvider provider = (BaseASRModelProvider) getProvider(providerAndModelKey);
-        return provider.speechToText(audioData, options);
+        if (provider != null) {
+            return provider;
+        }
+
+        Set<String> supported = new TreeSet<>(modelProviderMap.keySet());
+        throw new IllegalArgumentException("未找到ASR模型Provider: " + providerAndModelKey
+                + "，已注册模型: " + supported);
     }
 }

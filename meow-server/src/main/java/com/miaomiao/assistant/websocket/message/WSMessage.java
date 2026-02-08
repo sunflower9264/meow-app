@@ -15,7 +15,6 @@ import lombok.Data;
         visible = true
 )
 @JsonSubTypes({
-        @JsonSubTypes.Type(value = AudioMessage.class, name = "audio"),
         @JsonSubTypes.Type(value = StringMessage.class, name = "text")
 })
 

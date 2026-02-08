@@ -19,7 +19,7 @@ public class ConversationConfigService {
     public ConversationConfig getDefaultConfig() {
         return ConversationConfig.builder()
                 .asrProvider("zhipu")
-                .asrModel("chirp-beta")
+                .asrModel("glm-asr-2512")
                 .llmProvider("zhipu")
                 .llmModel("glm-4.5")
                 .ttsProvider("zhipu")

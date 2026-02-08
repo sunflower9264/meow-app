@@ -2,16 +2,21 @@ package com.miaomiao.assistant.websocket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.miaomiao.assistant.websocket.message.WSMessage;
+import com.miaomiao.assistant.websocket.message.AudioMessage;
 import com.miaomiao.assistant.websocket.handler.MessageHandlerRegistry;
+import com.miaomiao.assistant.websocket.protocol.BinaryAudioFrame;
 import com.miaomiao.assistant.websocket.session.WebSocketMessageSender;
 import com.miaomiao.assistant.websocket.session.SessionManager;
 import com.miaomiao.assistant.websocket.session.SessionState;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
+
+import java.io.IOException;
 
 /**
  * WebSocket对话处理器
@@ -21,6 +26,9 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 @Slf4j
 @Component
 public class ConversationWebSocketHandler extends TextWebSocketHandler {
+
+    private static final int MAX_TEXT_MESSAGE_SIZE = 2 * 1024 * 1024;
+    private static final int MAX_BINARY_MESSAGE_SIZE = 2 * 1024 * 1024;
 
     private final ObjectMapper objectMapper;
     private final SessionManager sessionManager;
@@ -39,7 +47,12 @@ public class ConversationWebSocketHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-        log.info("WebSocket连接建立: {}", session.getId());
+        session.setTextMessageSizeLimit(MAX_TEXT_MESSAGE_SIZE);
+        session.setBinaryMessageSizeLimit(MAX_BINARY_MESSAGE_SIZE);
+        log.info("WebSocket连接建立: {}, textLimit={}KB, binaryLimit={}KB",
+                session.getId(),
+                MAX_TEXT_MESSAGE_SIZE / 1024,
+                MAX_BINARY_MESSAGE_SIZE / 1024);
         sessionManager.createSession(session);
     }
 
@@ -63,6 +76,43 @@ public class ConversationWebSocketHandler extends TextWebSocketHandler {
         } catch (Exception e) {
             log.error("处理WebSocket消息失败", e);
             messageSender.sendError(session, e.getMessage());
+        }
+    }
+
+    @Override
+    protected void handleBinaryMessage(WebSocketSession session, BinaryMessage message) {
+        try {
+            BinaryAudioFrame frame = BinaryAudioFrame.decode(message.getPayload().asReadOnlyBuffer());
+
+            if (frame.getMessageType() != BinaryAudioFrame.TYPE_CLIENT_AUDIO) {
+                log.warn("收到不支持的二进制消息类型: {}, 会话: {}",
+                        Byte.toUnsignedInt(frame.getMessageType()), session.getId());
+                return;
+            }
+
+            SessionState state = sessionManager.getSession(session.getId()).orElse(null);
+            if (state == null) {
+                log.warn("Session状态未找到: {}", session.getId());
+                return;
+            }
+
+            AudioMessage audioMessage = new AudioMessage();
+            audioMessage.setType("audio");
+            audioMessage.setTimestamp(System.currentTimeMillis());
+            audioMessage.setFormat(frame.getFormat());
+            audioMessage.setData(frame.getPayload());
+            audioMessage.setLast(frame.isFinalChunk());
+
+            if (!handlerRegistry.dispatch(state, audioMessage)) {
+                log.warn("未找到音频消息处理器");
+            }
+        } catch (Exception e) {
+            log.error("处理WebSocket二进制消息失败", e);
+            try {
+                messageSender.sendError(session, e.getMessage());
+            } catch (IOException ioException) {
+                log.error("发送错误消息失败", ioException);
+            }
         }
     }
 

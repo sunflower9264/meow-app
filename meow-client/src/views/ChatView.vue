@@ -28,6 +28,10 @@
       </div>
 
       <!-- 正在输入中的AI消息气泡 -->
+      <div v-if="currentSTTText" class="msg user">
+        <div class="msg-content typing-bubble">{{ currentSTTText }}<span class="cursor">|</span></div>
+      </div>
+
       <div v-if="currentSentence" class="msg assistant">
         <div class="msg-content typing-bubble">{{ currentSentence }}<span class="cursor">|</span></div>
       </div>
@@ -80,6 +84,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useWebSocketStore } from '@/stores/websocket'
 import { getOpusPlayer } from '@/utils/opusPlayer'
+import { createAudioInputBinaryFrame } from '@/utils/wsBinaryProtocol'
 
 // Router
 const router = useRouter()
@@ -104,6 +109,7 @@ const inputText = ref('')
 const isRecording = ref(false)
 const recordingTime = ref(0)
 const currentSentence = ref('')
+const currentSTTText = ref('')
 const audioPlayer = ref(null)  // Still used for playAudio function
 const lastPlayedUrl = ref('')  // Still used for playAudio function
 const recordingState = ref(null) // Stores { mediaRecorder, stream, timer }
@@ -138,11 +144,20 @@ async function handleMessage(data) {
     messages.value.push(msg)
     scrollToBottom()
   } else if (data.type === 'stt') {
-    // Speech recognition result
-    msg.type = 'text'
-    msg.role = 'user'
-    msg.content = data.text
-    messages.value.push(msg)
+    const isFinal = data.isFinal ?? data.final ?? true
+    if (isFinal) {
+      // Final speech recognition result
+      msg.type = 'text'
+      msg.role = 'user'
+      msg.content = data.text || currentSTTText.value
+      if (msg.content) {
+        messages.value.push(msg)
+      }
+      currentSTTText.value = ''
+    } else {
+      // Streaming partial recognition
+      currentSTTText.value = data.text || currentSTTText.value
+    }
     scrollToBottom()
   } else if (data.type === 'llm_token') {
     // LLM streaming tokens for typing effect
@@ -167,8 +182,8 @@ async function handleMessage(data) {
     }
   } else if (data.type === 'tts') {
     // TTS audio from backend - raw Opus frames, decode and play via Web Audio API
-    const audioData = data.data && data.data.length > 0
-      ? base64ToArrayBuffer(data.data)
+    const audioData = data.binary && data.data instanceof ArrayBuffer
+      ? data.data
       : new ArrayBuffer(0)
     opusPlayer.feed(audioData, Boolean(data.finished))
   }
@@ -196,6 +211,10 @@ function sendText() {
 }
 
 async function startRecording() {
+  if (isRecording.value || recordingState.value) {
+    return
+  }
+
   // Check and request microphone permission first
   if (micPermission.value === 'denied') {
     alert('麦克风权限被拒绝。请在浏览器设置中允许麦克风访问。')
@@ -213,17 +232,26 @@ async function startRecording() {
     const mediaRecorder = preferredMimeType
       ? new MediaRecorder(stream, { mimeType: preferredMimeType })
       : new MediaRecorder(stream)
+    const chunks = []
 
-    mediaRecorder.ondataavailable = async (event) => {
-      if (event.data.size > 0) {
-        const arrayBuffer = await event.data.arrayBuffer()
-        const base64 = arrayBufferToBase64(arrayBuffer)
-        websocketStore.send({
-          type: 'audio',
-          format: mediaRecorder.mimeType || preferredMimeType || 'audio/webm',
-          data: base64,
-          isLast: true
-        })
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data && event.data.size > 0) {
+        chunks.push(event.data)
+      }
+    }
+
+    mediaRecorder.onstop = async () => {
+      if (chunks.length === 0) {
+        return
+      }
+      try {
+        const sourceBlob = new Blob(chunks, { type: mediaRecorder.mimeType || preferredMimeType || 'audio/webm' })
+        const wavBuffer = await convertBlobToWav(sourceBlob)
+        const finalFrame = createAudioInputBinaryFrame('wav', wavBuffer, true)
+        websocketStore.sendBinary(finalFrame)
+      } catch (err) {
+        console.error('Error converting recording to wav:', err)
+        alert('语音处理失败，请重试')
       }
     }
 
@@ -253,7 +281,9 @@ function stopRecording() {
   if (recordingState.value) {
     const { mediaRecorder, stream, timer } = recordingState.value
 
-    mediaRecorder.stop()
+    if (mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop()
+    }
     stream.getTracks().forEach(track => track.stop())
     clearInterval(timer)
 
@@ -299,31 +329,88 @@ function formatTime(timestamp) {
   return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
 }
 
+async function convertBlobToWav(blob) {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext
+  if (!AudioContextClass) {
+    throw new Error('当前浏览器不支持AudioContext')
+  }
+
+  const sourceBuffer = await blob.arrayBuffer()
+  const audioContext = new AudioContextClass()
+  try {
+    const audioBuffer = await audioContext.decodeAudioData(sourceBuffer.slice(0))
+    return encodeAudioBufferToWav(audioBuffer)
+  } finally {
+    await audioContext.close().catch(() => {})
+  }
+}
+
+function encodeAudioBufferToWav(audioBuffer) {
+  const sampleRate = Math.round(audioBuffer.sampleRate)
+  const monoData = toMonoChannelData(audioBuffer)
+  const blockAlign = 2
+  const byteRate = sampleRate * blockAlign
+  const pcmByteLength = monoData.length * blockAlign
+
+  const wavBuffer = new ArrayBuffer(44 + pcmByteLength)
+  const view = new DataView(wavBuffer)
+
+  writeAscii(view, 0, 'RIFF')
+  view.setUint32(4, 36 + pcmByteLength, true)
+  writeAscii(view, 8, 'WAVE')
+  writeAscii(view, 12, 'fmt ')
+  view.setUint32(16, 16, true)
+  view.setUint16(20, 1, true)
+  view.setUint16(22, 1, true)
+  view.setUint32(24, sampleRate, true)
+  view.setUint32(28, byteRate, true)
+  view.setUint16(32, blockAlign, true)
+  view.setUint16(34, 16, true)
+  writeAscii(view, 36, 'data')
+  view.setUint32(40, pcmByteLength, true)
+
+  let offset = 44
+  for (let i = 0; i < monoData.length; i++) {
+    const sample = Math.max(-1, Math.min(1, monoData[i]))
+    const pcm = sample < 0 ? sample * 0x8000 : sample * 0x7fff
+    view.setInt16(offset, pcm, true)
+    offset += 2
+  }
+
+  return wavBuffer
+}
+
+function toMonoChannelData(audioBuffer) {
+  if (audioBuffer.numberOfChannels === 1) {
+    return audioBuffer.getChannelData(0)
+  }
+
+  const channelCount = audioBuffer.numberOfChannels
+  const mono = new Float32Array(audioBuffer.length)
+  for (let channel = 0; channel < channelCount; channel++) {
+    const data = audioBuffer.getChannelData(channel)
+    for (let i = 0; i < data.length; i++) {
+      mono[i] += data[i]
+    }
+  }
+  for (let i = 0; i < mono.length; i++) {
+    mono[i] /= channelCount
+  }
+  return mono
+}
+
+function writeAscii(view, offset, text) {
+  for (let i = 0; i < text.length; i++) {
+    view.setUint8(offset + i, text.charCodeAt(i))
+  }
+}
+
 function getPreferredRecordingMimeType() {
   if (typeof MediaRecorder === 'undefined' || typeof MediaRecorder.isTypeSupported !== 'function') {
     return ''
   }
   const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus']
   return candidates.find(type => MediaRecorder.isTypeSupported(type)) || ''
-}
-
-// Audio utilities
-function arrayBufferToBase64(buffer) {
-  const bytes = new Uint8Array(buffer)
-  let binary = ''
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i])
-  }
-  return btoa(binary)
-}
-
-function base64ToArrayBuffer(base64) {
-  const binaryString = atob(base64)
-  const bytes = new Uint8Array(binaryString.length)
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i)
-  }
-  return bytes.buffer
 }
 
 // Microphone permission handling

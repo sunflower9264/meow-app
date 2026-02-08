@@ -3,15 +3,15 @@ package com.miaomiao.assistant.websocket.session;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.miaomiao.assistant.websocket.message.LLMTokenMessage;
 import com.miaomiao.assistant.websocket.message.STTMessage;
-import com.miaomiao.assistant.websocket.message.TTSMessage;
 import com.miaomiao.assistant.websocket.message.WSMessage;
+import com.miaomiao.assistant.websocket.protocol.BinaryAudioFrame;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
 import java.io.IOException;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -90,13 +90,20 @@ public class WebSocketMessageSender {
      * @param finished 是否是本段TTS的最后一帧
      */
     public void sendTTSAudio(SessionState state, byte[] opusData, boolean finished) throws IOException {
-        TTSMessage message = new TTSMessage();
-        message.setType("tts");
-        message.setFormat("opus");
-        message.setData(Base64.getEncoder().encodeToString(opusData));
-        message.setFinished(finished);
-        message.setTimestamp(System.currentTimeMillis());
-        sendMessage(state, message);
+        if (state == null || state.getSession() == null || !state.getSession().isOpen()) {
+            log.warn("WebSocket会话已关闭，无法发送TTS音频");
+            return;
+        }
+
+        WebSocketSession session = state.getSession();
+        byte[] payload = opusData == null ? new byte[0] : opusData;
+        byte[] frameBytes = BinaryAudioFrame.serverTTS("opus", payload, finished).encode();
+
+        synchronized (session) {
+            if (session.isOpen()) {
+                session.sendMessage(new BinaryMessage(frameBytes));
+            }
+        }
     }
 
     /**

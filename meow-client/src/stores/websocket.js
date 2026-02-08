@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { parseIncomingBinaryMessage } from '@/utils/wsBinaryProtocol'
 
 export const useWebSocketStore = defineStore('websocket', () => {
   const ws = ref(null)
@@ -18,6 +19,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
     console.log('Connecting to WebSocket:', url)
 
     ws.value = new WebSocket(url)
+    ws.value.binaryType = 'arraybuffer'
 
     ws.value.onopen = () => {
       console.log('WebSocket connected')
@@ -25,9 +27,27 @@ export const useWebSocketStore = defineStore('websocket', () => {
       isConnected.value = true
     }
 
-    ws.value.onmessage = (event) => {
+    ws.value.onmessage = async (event) => {
       try {
-        const data = JSON.parse(event.data)
+        if (typeof event.data === 'string') {
+          const data = JSON.parse(event.data)
+          messageHandlers.forEach(handler => handler(data))
+          return
+        }
+
+        let binaryData = null
+        if (event.data instanceof ArrayBuffer) {
+          binaryData = event.data
+        } else if (event.data instanceof Blob) {
+          binaryData = await event.data.arrayBuffer()
+        }
+
+        if (!binaryData) {
+          console.warn('Unsupported WebSocket message payload type:', typeof event.data)
+          return
+        }
+
+        const data = parseIncomingBinaryMessage(binaryData)
         messageHandlers.forEach(handler => handler(data))
       } catch (error) {
         console.error('Failed to parse WebSocket message:', error)
@@ -71,6 +91,14 @@ export const useWebSocketStore = defineStore('websocket', () => {
     }
   }
 
+  function sendBinary(data) {
+    if (ws.value?.readyState === WebSocket.OPEN) {
+      ws.value.send(data)
+    } else {
+      console.error('WebSocket is not connected')
+    }
+  }
+
   function onMessage(handler) {
     messageHandlers.push(handler)
     return () => {
@@ -87,6 +115,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
     connect,
     disconnect,
     send,
+    sendBinary,
     onMessage
   }
 })

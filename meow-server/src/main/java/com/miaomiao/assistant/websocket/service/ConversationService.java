@@ -52,18 +52,22 @@ public class ConversationService {
                 }
                 ConversationConfig config = configService.getConfigBySessionId(state.getSessionId());
 
-                // 1. ASR: 语音转文本
-                ASRResult asrResult = asrService.speechToText(audioData, audioFormat, config);
+                // 1. ASR: 流式语音转文本（仅流式，不降级）
+                String transcript = transcribeAudioStreaming(state, audioData, audioFormat, config);
                 if (!state.getSession().isOpen()) {
                     log.debug("会话 {} 在 ASR 后已断开，终止后续流程", state.getSessionId());
                     return;
                 }
+                if (transcript == null || transcript.isBlank()) {
+                    log.debug("ASR 识别结果为空，跳过后续流程");
+                    return;
+                }
 
-                // 发送STT结果到客户端
-                messageSender.sendSTTResult(state, asrResult.getText(), true);
+                // 发送最终 STT 结果到客户端
+                messageSender.sendSTTResult(state, transcript, true);
 
                 // 2. LLM + TTS: 对话生成和语音合成
-                processTextInput(state, asrResult.getText(), config);
+                processTextInput(state, transcript, config);
 
             } catch (Exception e) {
                 log.error("对话处理失败", e);
@@ -77,6 +81,50 @@ public class ConversationService {
                 }
             }
         });
+    }
+
+    private String transcribeAudioStreaming(SessionState state, byte[] audioData, String audioFormat, ConversationConfig config) {
+        return asrService.speechToTextStream(audioData, audioFormat, config)
+                .map(ASRResult::getText)
+                .filter(text -> text != null && !text.isBlank())
+                .scan("", this::mergeTranscript)
+                .skip(1)
+                .doOnNext(partial -> sendPartialSTT(state, partial))
+                .last("")
+                .blockOptional()
+                .orElse("");
+    }
+
+    private void sendPartialSTT(SessionState state, String partialText) {
+        if (partialText == null || partialText.isBlank() || !state.getSession().isOpen()) {
+            return;
+        }
+        try {
+            messageSender.sendSTTResult(state, partialText, false);
+        } catch (Exception e) {
+            log.warn("发送流式 STT 结果失败: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 兼容增量和累计两种 ASR chunk 文本格式：
+     * - 若 incoming 以 accumulated 开头，则视为累计文本，直接替换
+     * - 否则视为增量文本，追加
+     */
+    private String mergeTranscript(String accumulated, String incoming) {
+        if (incoming == null || incoming.isBlank()) {
+            return accumulated;
+        }
+        if (accumulated == null || accumulated.isBlank()) {
+            return incoming;
+        }
+        if (incoming.startsWith(accumulated)) {
+            return incoming;
+        }
+        if (accumulated.startsWith(incoming)) {
+            return accumulated;
+        }
+        return accumulated + incoming;
     }
 
     /**
