@@ -193,7 +193,7 @@ public class ConcurrentTTSFrameProcessor implements FrameProcessor {
     /**
      * 处理结束 Frame
      */
-    private void processEndFrame() throws FrameProcessingException {
+    private void processEndFrame() {
         log.debug("开始处理 EndFrame，聚合器缓冲区: {}", textAggregator.getBufferContent());
 
         // 处理剩余文本

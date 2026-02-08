@@ -123,6 +123,10 @@ public class LLMService {
 
         // 流结束
         if (appLlmResponse.finished()) {
+            if (fullResponse.isEmpty()) {
+                log.warn("LLM流结束但无文本输出: session={}, userTextLen={}",
+                        state.getSessionId(), userText == null ? 0 : userText.length());
+            }
             tokenSink.tryEmitComplete();
 
             // 发送完成标记给前端

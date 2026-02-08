@@ -211,15 +211,12 @@ public class ConcurrentTTSProcessor implements AutoCloseable {
         }
 
         long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
-        int textLength = task.getText() == null ? 0 : task.getText().length();
         if (result.isSuccess()) {
-            int pcmBytes = result.getPcmData() == null ? 0 : result.getPcmData().length;
-            int opusBytes = result.getOpusData() == null ? 0 : result.getOpusData().length;
-            log.debug("TTS 任务完成: seq={}, textLen={}, pcmBytes={}, opusBytes={}, elapsedMs={}",
-                    task.getSequence(), textLength, pcmBytes, opusBytes, elapsedMs);
+            log.debug("TTS 任务完成: seq={}, text={}, elapsedMs={}",
+                    task.getSequence(), result.getText(), elapsedMs);
         } else {
-            log.warn("TTS 任务完成(失败): seq={}, textLen={}, error={}, elapsedMs={}",
-                    task.getSequence(), textLength, result.getErrorMessage(), elapsedMs);
+            log.warn("TTS 任务完成(失败): seq={}, text={}, error={}, elapsedMs={}",
+                    task.getSequence(), result.getText(), result.getErrorMessage(), elapsedMs);
         }
 
         // 将结果放入待处理映射

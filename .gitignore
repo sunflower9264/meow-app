@@ -1,7 +1,8 @@
-.idea/
-backapack/
-logs/
+.idea/**
+backapack/**
+logs/**
 pipecat-main/
 tts_output/**
 *.opus
 *.pcm
+.tmp/**

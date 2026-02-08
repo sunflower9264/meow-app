@@ -70,7 +70,7 @@ public class ConversationConfig {
      * LLM 最大输出 token 数
      */
     @Builder.Default
-    private Integer maxTokens = 500;
+    private Integer maxTokens = 200;
 
     /**
      * 角色卡 ID
